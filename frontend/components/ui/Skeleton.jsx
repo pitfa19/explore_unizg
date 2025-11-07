@@ -18,7 +18,7 @@ export default function Skeleton({ className = "", variant = "default" }) {
 
 export function SkeletonCard() {
   return (
-    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6">
+    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-6 md:p-8">
       <Skeleton className="h-6 w-32 mb-4" />
       <Skeleton className="h-4 w-48 mb-6" />
       <div className="space-y-3">

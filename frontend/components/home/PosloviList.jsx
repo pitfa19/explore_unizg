@@ -1,13 +1,14 @@
 "use client";
 
+import { memo } from "react";
 import { poslovi } from "@/data/posloviData";
 import CardSpotlight from "@/components/ui/CardSpotlight";
 
-export default function PosloviList() {
+const PosloviList = memo(function PosloviList() {
   return (
     <CardSpotlight className="rounded-2xl">
       <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 flex flex-col h-full hover:shadow-3xl transition-all duration-300 hover:border-amber-300/50 dark:hover:border-amber-500/30">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
             Poslovi
           </h3>
@@ -36,5 +37,7 @@ export default function PosloviList() {
       </div>
     </CardSpotlight>
   );
-}
+});
+
+export default PosloviList;
 

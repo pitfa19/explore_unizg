@@ -1,9 +1,10 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-export default function HeroSection() {
+const HeroSection = memo(function HeroSection() {
   const stats = [
     { value: "50+", label: "Fakulteta" },
     { value: "100+", label: "Udruga" },
@@ -11,7 +12,7 @@ export default function HeroSection() {
   ];
 
   return (
-    <section className="relative w-full py-20 md:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="relative w-full py-20 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -68,7 +69,7 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="grid grid-cols-3 gap-6 md:gap-12 max-w-2xl mx-auto"
+          className="grid grid-cols-3 gap-6 md:gap-8 max-w-2xl mx-auto"
         >
           {stats.map((stat, index) => (
             <motion.div
@@ -90,5 +91,7 @@ export default function HeroSection() {
       </div>
     </section>
   );
-}
+});
+
+export default HeroSection;
 
