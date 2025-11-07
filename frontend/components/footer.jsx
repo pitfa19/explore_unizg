@@ -95,9 +95,9 @@ const Footer = () => {
         </div>
         <div className="border-t border-slate-700 pt-8 mt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-400">
-              © {new Date().getFullYear()} Explore Unizg. Sva prava pridržana.
-            </p>
+          <p className="text-sm text-gray-400">
+            © {new Date().getFullYear()} Explore Unizg. Sva prava pridržana.
+          </p>
             <div className="flex gap-6 text-sm text-gray-400">
               <a href="#" className="hover:text-blue-400 transition-colors">Pravila privatnosti</a>
               <a href="#" className="hover:text-blue-400 transition-colors">Uvjeti korištenja</a>
