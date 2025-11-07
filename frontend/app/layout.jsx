@@ -26,11 +26,11 @@ export default function RootLayout({ children }) {
         <ThemeInitializer />
         <ThemeProvider>
           <ToastProvider>
-            <Navbar/>
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer/>
+          <Navbar/>
+          <main className="flex-1">
+            {children}
+          </main>
+          <Footer/>
           </ToastProvider>
         </ThemeProvider>
       </body>

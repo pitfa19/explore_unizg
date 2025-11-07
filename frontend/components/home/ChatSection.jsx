@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import CardSpotlight from "@/components/ui/CardSpotlight";
 import { useToast } from "@/components/ui/Toast";
 import Tooltip from "@/components/ui/Tooltip";
@@ -13,10 +14,20 @@ export default function ChatSection() {
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
+<<<<<<< HEAD
   const [isSending, setIsSending] = useState(false);
+=======
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+>>>>>>> d816a30 (update)
   const fileInputRef = useRef(null);
+  const inputAreaRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const textareaRef = useRef(null);
   const { showToast } = useToast();
 
+<<<<<<< HEAD
   const handleSend = async () => {
     if (isSending) return;
     const trimmed = inputValue.trim();
@@ -44,6 +55,82 @@ export default function ChatSection() {
       // Persist/refresh student id
       if (studentId != null) {
         setStudentId(studentId);
+=======
+  // Auto-expand when first message is sent
+  useEffect(() => {
+    if (messages.length > 0 && !isExpanded) {
+      setIsExpanded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length]);
+
+  // Scroll input bar to bottom when focused or typing
+  useEffect(() => {
+    if (isInputFocused && inputAreaRef.current) {
+      // Delay to allow padding and margin transitions to apply first
+      const timer = setTimeout(() => {
+        const element = inputAreaRef.current;
+        if (element) {
+          // Calculate scroll position to leave space at bottom
+          const rect = element.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const offset = 100; // Space from bottom in pixels
+          const targetScroll = scrollTop + rect.bottom - window.innerHeight + offset;
+          
+          window.scrollTo({
+            top: Math.max(0, targetScroll),
+            behavior: "smooth"
+          });
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isInputFocused, inputValue]);
+
+  // Scroll to input when expanding
+  useEffect(() => {
+    if (isExpanded && inputAreaRef.current) {
+      // Delay to allow padding, margin and animation to apply
+      setTimeout(() => {
+        const element = inputAreaRef.current;
+        if (element) {
+          // Calculate scroll position to leave space at bottom
+          const rect = element.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const offset = 100; // Space from bottom in pixels
+          const targetScroll = scrollTop + rect.bottom - window.innerHeight + offset;
+          
+          window.scrollTo({
+            top: Math.max(0, targetScroll),
+            behavior: "smooth"
+          });
+        }
+      }, 700);
+    }
+  }, [isExpanded]);
+
+  // Auto-scroll to bottom of messages when new message is added (internal scroll only)
+  useEffect(() => {
+    if (messagesContainerRef.current && messages.length > 0 && isExpanded) {
+      setTimeout(() => {
+        // Scroll within the container, not the page
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }, 100);
+    }
+  }, [messages.length, isExpanded]);
+
+  const handleSend = () => {
+    if (inputValue.trim() || uploadedFile) {
+      const messageText = uploadedFile 
+        ? `${inputValue.trim() ? inputValue : ""} 📎 ${uploadedFile.name}`
+        : inputValue;
+      
+      setMessages([...messages, { text: messageText, sender: "user", file: uploadedFile }]);
+      setInputValue("");
+      setUploadedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+>>>>>>> d816a30 (update)
       }
 
       if (answer && answer.trim()) {
@@ -112,9 +199,27 @@ export default function ChatSection() {
     }
   };
 
+  const handleInputFocus = () => {
+    setIsInputFocused(true);
+    if (messages.length > 0 && !isExpanded) {
+      setIsExpanded(true);
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Keep expanded if there are messages
+    if (messages.length === 0) {
+      setIsInputFocused(false);
+    }
+  };
+
   return (
-    <section className="w-full py-16 px-4 sm:px-6 lg:px-8 relative">
-      <div className="max-w-4xl mx-auto">
+    <section 
+      className={`w-full py-20 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative transition-all duration-300 ${
+        isInputFocused || isExpanded ? 'pb-24 md:pb-32' : ''
+      }`}
+    >
+      <div className={`max-w-4xl mx-auto ${isInputFocused || isExpanded ? 'pb-20 md:pb-28' : ''}`}>
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
             Postavite pitanja
@@ -124,62 +229,192 @@ export default function ChatSection() {
           </p>
         </div>
         <CardSpotlight className="rounded-2xl">
-          <div className="flex flex-col h-[600px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4" role="log" aria-live="polite" aria-label="Chat messages">
-              {messages.length === 0 && (
-                <EmptyState
-                  title="Započnite razgovor"
-                  description="Postavite pitanje ili pošaljite poruku da započnete razgovor s našim asistentom."
-                  icon={
-                    <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                  }
-                />
-              )}
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    message.sender === "user" ? "justify-end" : "justify-start"
-                  }`}
+          <div className="relative">
+            <motion.div
+              className="flex flex-col bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden"
+              initial={false}
+              animate={{
+                minHeight: isExpanded && messages.length > 0 ? "300px" : "auto",
+                marginBottom: isInputFocused || isExpanded ? "80px" : "0px",
+              }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            >
+              {/* Messages Area - expands upwards from input bar */}
+              <AnimatePresence>
+                {isExpanded && messages.length > 0 && (
+                  <motion.div
+                    key="messages"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                    className="overflow-hidden flex-1 messages-container"
+                  >
+                    <div 
+                      ref={messagesContainerRef}
+                      className="overflow-y-auto p-4 md:p-5 space-y-3"
+                      role="log"
+                      aria-live="polite"
+                      aria-label="Chat messages"
+                      style={{ maxHeight: "250px", minHeight: "100px" }}
+                      onWheel={(e) => {
+                        // Prevent page scroll when scrolling messages container
+                        const container = e.currentTarget;
+                        const { scrollTop, scrollHeight, clientHeight } = container;
+                        const isAtTop = scrollTop === 0;
+                        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+                        
+                        // Only prevent page scroll if we're scrolling within the container
+                        if ((!isAtTop && e.deltaY < 0) || (!isAtBottom && e.deltaY > 0)) {
+                          e.stopPropagation();
+                        }
+                      }}
+                    >
+                      {messages.map((message, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                          className={`flex ${
+                            message.sender === "user" ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-xl px-4 py-2 shadow-sm ${
+                              message.sender === "user"
+                                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+                            }`}
+                          >
+                            <p className="text-sm">{message.text}</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Input Area - always visible at bottom */}
+              <div 
+                ref={inputAreaRef}
+                className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800/50 relative"
+                style={{
+                  scrollMarginBottom: isInputFocused || isExpanded ? '80px' : '0px'
+                }}
+              >
+                {uploadedFile && (
+                  <div className="mb-3 flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm text-gray-700 dark:text-gray-300 font-medium truncate max-w-[200px]">
+                        {uploadedFile.name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={removeFile}
+                      className="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                      aria-label="Remove file"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                <div 
+                  className="flex items-end space-x-4"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
                 >
-                  <div
-                    className={`max-w-[80%] rounded-xl px-4 py-2 shadow-sm ${
-                      message.sender === "user"
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-                    }`}
-                  >
-                    <p className="text-sm">{message.text}</p>
+                  <div className="flex-1 relative">
+                    <textarea
+                      ref={textareaRef}
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
+                      placeholder="Upišite svoju poruku..."
+                      className="w-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[60px] max-h-[200px] transition-all"
+                      rows={1}
+                    />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="pdf-upload"
+                    />
+                    <Tooltip text="Dodaj PDF datoteku (npr. CV)">
+                      <label
+                        htmlFor="pdf-upload"
+                        className="absolute right-2 bottom-2 p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        aria-label="Dodaj PDF datoteku"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </label>
+                    </Tooltip>
                   </div>
+                  <RippleButton
+                    onClick={handleSend}
+                    disabled={!inputValue.trim() && !uploadedFile}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+                    aria-label="Pošalji poruku"
+                  >
+                    Pošalji
+                  </RippleButton>
                 </div>
-              ))}
-            </div>
-            {/* Input Area */}
-            <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800/50">
-              {uploadedFile && (
-                <div className="mb-3 flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium truncate max-w-[200px]">
-                      {uploadedFile.name}
-                    </span>
-                  </div>
+              </div>
+              
+              {/* Expand/Collapse Button - below input area */}
+              {messages.length > 0 && (
+                <div className="flex justify-center px-4 pb-4 pt-2">
                   <button
-                    onClick={removeFile}
-                    className="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-                    aria-label="Remove file"
+                    onClick={() => {
+                      setIsExpanded(!isExpanded);
+                      if (!isExpanded && inputAreaRef.current) {
+                        setTimeout(() => {
+                          inputAreaRef.current?.scrollIntoView({ 
+                            behavior: "smooth", 
+                            block: "end",
+                            inline: "nearest"
+                          });
+                        }, 100);
+                      }
+                    }}
+                    className="px-4 py-2 bg-white dark:bg-gray-800 backdrop-blur-md text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium group"
+                    aria-label={isExpanded ? "Sakrij poruke" : "Prikaži poruke"}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <motion.svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      animate={{ rotate: isExpanded ? 0 : 180 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 15l7-7 7 7"
+                      />
+                    </motion.svg>
+                    <span className="text-sm font-semibold">
+                      {isExpanded ? "Sakrij" : "Prikaži"}
+                    </span>
                   </button>
                 </div>
               )}
+<<<<<<< HEAD
               <div 
                 className="flex items-end space-x-4"
                 onDrop={handleDrop}
@@ -225,10 +460,12 @@ export default function ChatSection() {
                 </RippleButton>
               </div>
             </div>
+=======
+            </motion.div>
+>>>>>>> d816a30 (update)
           </div>
         </CardSpotlight>
       </div>
     </section>
   );
 }
-

@@ -1,39 +1,47 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, memo, useCallback } from "react";
 
-export default function CardSpotlight({ children, className = "" }) {
+const CardSpotlight = memo(function CardSpotlight({ children, className = "" }) {
   const divRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [opacity, setOpacity] = useState(0);
+  const rafRef = useRef(null);
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (!divRef.current || isFocused) return;
 
-    const div = divRef.current;
-    const rect = div.getBoundingClientRect();
+    // Use requestAnimationFrame for smoother performance
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
 
-    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
+    rafRef.current = requestAnimationFrame(() => {
+      if (!divRef.current) return;
+      const div = divRef.current;
+      const rect = div.getBoundingClientRect();
+      setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    });
+  }, [isFocused]);
 
-  const handleFocus = () => {
+  const handleFocus = useCallback(() => {
     setIsFocused(true);
     setOpacity(1);
-  };
+  }, []);
 
-  const handleBlur = () => {
+  const handleBlur = useCallback(() => {
     setIsFocused(false);
     setOpacity(0);
-  };
+  }, []);
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = useCallback(() => {
     setOpacity(1);
-  };
+  }, []);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setOpacity(0);
-  };
+  }, []);
 
   return (
     <div
@@ -55,5 +63,7 @@ export default function CardSpotlight({ children, className = "" }) {
       {children}
     </div>
   );
-}
+});
+
+export default CardSpotlight;
 

@@ -1,17 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { events } from "@/data/eventsData";
 import { motion, AnimatePresence } from "motion/react";
+import Image from "next/image";
 
-export default function EventsSlideshow() {
+const EventsSlideshow = memo(function EventsSlideshow() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [isInView, setIsInView] = useState(false);
+  const sectionRef = useRef(null);
 
-  // Auto-play slideshow with progress indicator
+  // Intersection Observer - start animations only when in viewport
   useEffect(() => {
-    if (!isAutoPlaying) {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        }
+      },
+      { rootMargin: "50px" }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current);
+      }
+    };
+  }, []);
+
+  // Auto-play slideshow with progress indicator - only when in view
+  useEffect(() => {
+    if (!isAutoPlaying || !isInView) {
       setProgress(0);
       return;
     }
@@ -35,7 +60,7 @@ export default function EventsSlideshow() {
       clearInterval(progressInterval);
       clearTimeout(slideInterval);
     };
-  }, [isAutoPlaying, currentIndex, events.length]);
+  }, [isAutoPlaying, currentIndex, events.length, isInView]);
 
   const goToSlide = (index) => {
     setCurrentIndex(index);
@@ -62,7 +87,7 @@ export default function EventsSlideshow() {
   };
 
   return (
-    <section className="w-full py-12 px-4 sm:px-6 lg:px-8 relative">
+    <section ref={sectionRef} className="w-full py-20 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3">
@@ -97,18 +122,23 @@ export default function EventsSlideshow() {
                 transition={{ duration: 0.4, ease: "easeInOut" }}
                 className="absolute inset-0"
               >
-                <motion.div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{
-                    backgroundImage: `url(${events[currentIndex].image}?w=800&h=600&fit=crop&q=80)`,
-                    willChange: "transform",
-                  }}
-                  initial={{ scale: 1.1 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-                </motion.div>
+                <div className="absolute inset-0" style={{ willChange: "transform" }}>
+                  <Image
+                    src={events[currentIndex].image}
+                    alt={events[currentIndex].title}
+                    fill
+                    sizes="100vw"
+                    className="object-cover"
+                    priority={currentIndex === 0}
+                    quality={85}
+                  />
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"
+                    initial={{ scale: 1.1 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
+                </div>
                 
                 <motion.div 
                   className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white"
@@ -228,11 +258,13 @@ export default function EventsSlideshow() {
                 whileHover={{ scale: 1.05, opacity: 1 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <div className="w-24 h-16 md:w-32 md:h-20">
-                  <img
+                <div className="w-24 h-16 md:w-32 md:h-20 relative">
+                  <Image
                     src={event.image}
                     alt={event.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 96px, 128px"
+                    className="object-cover rounded-lg"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -276,5 +308,7 @@ export default function EventsSlideshow() {
       </div>
     </section>
   );
-}
+});
+
+export default EventsSlideshow;
 

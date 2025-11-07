@@ -7,8 +7,9 @@ export const BoxesCore = ({
   className,
   ...rest
 }) => {
-  const rows = new Array(150).fill(1);
-  const cols = new Array(100).fill(1);
+  // Reduced number of boxes for better performance
+  const rows = new Array(50).fill(1);
+  const cols = new Array(30).fill(1);
   let colors = [
     "#93c5fd",
     "#f9a8d4",
@@ -35,7 +36,7 @@ export const BoxesCore = ({
       )}
       {...rest}>
       {rows.map((_, i) => (
-        <motion.div key={`row` + i} className="relative h-8 w-16 border-l border-slate-700">
+        <motion.div key={`row-${i}`} className="relative h-8 w-16 border-l border-slate-700">
           {cols.map((_, j) => (
             <motion.div
               whileHover={{
@@ -46,8 +47,10 @@ export const BoxesCore = ({
                 backgroundColor: "transparent",
                 transition: { duration: 2 },
               }}
-              key={`col` + j}
-              className="relative h-8 w-16 border-t border-r border-slate-700">
+              key={`col-${i}-${j}`}
+              className="relative h-8 w-16 border-t border-r border-slate-700"
+              style={{ willChange: "background-color" }}
+            >
               {j % 2 === 0 && i % 2 === 0 ? (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
