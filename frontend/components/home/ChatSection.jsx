@@ -6,34 +6,67 @@ import { useToast } from "@/components/ui/Toast";
 import Tooltip from "@/components/ui/Tooltip";
 import RippleButton from "@/components/ui/Ripple";
 import EmptyState from "@/components/ui/EmptyState";
+import { processMessage } from "@/lib/api/chat";
+import { getStudentId, setStudentId, clearStudentId } from "@/lib/storage";
 
 export default function ChatSection() {
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef(null);
   const { showToast } = useToast();
 
-  const handleSend = () => {
-    if (inputValue.trim() || uploadedFile) {
-      const messageText = uploadedFile 
-        ? `${inputValue.trim() ? inputValue : ""} 📎 ${uploadedFile.name}`
-        : inputValue;
-      
-      setMessages([...messages, { text: messageText, sender: "user", file: uploadedFile }]);
-      setInputValue("");
-      setUploadedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+  const handleSend = async () => {
+    if (isSending) return;
+    const trimmed = inputValue.trim();
+    if (!trimmed && !uploadedFile) return;
+
+    const messageText = uploadedFile 
+      ? `${trimmed ? trimmed : ""} 📎 ${uploadedFile.name}`
+      : trimmed;
+
+    // Optimistically render user message
+    setMessages((prev) => [...prev, { text: messageText, sender: "user", file: uploadedFile }]);
+
+    // Reset input and file picker
+    setInputValue("");
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    setIsSending(true);
+    try {
+      const currentId = getStudentId();
+      const { answer, studentId } = await processMessage({ text: trimmed, studentId: currentId ?? undefined });
+
+      // Persist/refresh student id
+      if (studentId != null) {
+        setStudentId(studentId);
       }
-      showToast("Poruka poslana!", "success");
-      // Simulate response
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          { text: "Ovo je primjer odgovora.", sender: "assistant" },
-        ]);
-      }, 500);
+
+      if (answer && answer.trim()) {
+        setMessages((prev) => [...prev, { text: answer, sender: "assistant" }]);
+      } else {
+        // No reply from agent (stubbed empty string)
+        showToast("Agent još nema odgovor.", "info");
+      }
+    } catch (err) {
+      const status = err?.status;
+      const msg = err?.message || "Došlo je do pogreške.";
+
+      // If student_id is invalid, clear it and inform user
+      if (status === 404) {
+        clearStudentId();
+        showToast("Nevažeći razgovor. Sesija je resetirana.", "warning");
+      } else if (status === 400) {
+        showToast(msg, "error");
+      } else {
+        showToast("Greška mreže ili poslužitelja. Pokušajte ponovo.", "error");
+      }
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -160,6 +193,7 @@ export default function ChatSection() {
                     placeholder="Upišite svoju poruku..."
                     className="w-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[60px] max-h-[200px] transition-all"
                     rows={1}
+                    disabled={isSending}
                   />
                   <input
                     ref={fileInputRef}
@@ -183,11 +217,11 @@ export default function ChatSection() {
                 </div>
                 <RippleButton
                   onClick={handleSend}
-                  disabled={!inputValue.trim() && !uploadedFile}
+                  disabled={isSending || (!inputValue.trim() && !uploadedFile)}
                   className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
                   aria-label="Pošalji poruku"
                 >
-                  Pošalji
+                  {isSending ? "Slanje..." : "Pošalji"}
                 </RippleButton>
               </div>
             </div>
