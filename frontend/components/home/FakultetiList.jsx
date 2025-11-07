@@ -6,7 +6,7 @@ import CardSpotlight from "@/components/ui/CardSpotlight";
 export default function FakultetiList() {
   return (
     <CardSpotlight className="rounded-2xl">
-      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 flex flex-col h-full">
+      <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 flex flex-col h-full hover:shadow-3xl transition-all duration-300 hover:border-blue-300/50 dark:hover:border-blue-500/30">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
             Fakulteti
