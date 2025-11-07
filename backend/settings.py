@@ -13,7 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# With settings.py at the outer backend folder, BASE_DIR is that folder.
+BASE_DIR = Path(__file__).resolve().parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -58,7 +59,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'backend.urls'
+ROOT_URLCONF = 'urls'
 
 TEMPLATES = [
     {
@@ -75,7 +76,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+WSGI_APPLICATION = 'wsgi.application'
 
 
 # Database
@@ -135,3 +136,5 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
