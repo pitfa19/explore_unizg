@@ -4,6 +4,7 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import ThemeInitializer from "@/components/ui/ThemeInitializer";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700"],
@@ -24,11 +25,13 @@ export default function RootLayout({ children }) {
       >
         <ThemeInitializer />
         <ThemeProvider>
-          <Navbar/>
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer/>
+          <ToastProvider>
+            <Navbar/>
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer/>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
