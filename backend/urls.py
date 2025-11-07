@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.http import HttpResponse
+from openai_integration.views import process_message
 
 
 def home(_request):
@@ -24,5 +25,8 @@ def home(_request):
 
 urlpatterns = [
     path('', home, name='home'),
+    path('api/message/', process_message, name='process_message'),
     path('admin/', admin.site.urls),
 ]
+
+
