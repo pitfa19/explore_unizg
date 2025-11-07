@@ -52,9 +52,12 @@ def process_message(request: HttpRequest):
     messages = list(student.messages or [])
 
     # Stub agent reply
-    agent_reply = ""
-    agent_msg = MessageItem(role="agent", content=agent_reply, created_at=now_iso)
-    messages.append(agent_msg.model_dump(mode="json"))
+    agent_reply = "..."
+    try:
+        agent_msg = MessageItem(role="agent", content=agent_reply, created_at=now_iso)
+        messages.append(agent_msg.model_dump(mode="json"))
+    except Exception as e:
+        return _add_cors_headers(JsonResponse({"error": f"Invalid agent reply: {e}"}, status=500))
 
     # Validate full conversation
     try:
