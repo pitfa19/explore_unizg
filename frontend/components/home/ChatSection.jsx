@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import CardSpotlight from "@/components/ui/CardSpotlight";
 import { useToast } from "@/components/ui/Toast";
 import Tooltip from "@/components/ui/Tooltip";
-import RippleButton from "@/components/ui/Ripple";
-import { processMessage } from "@/lib/api/chat";
+import { processMessage, embedStudentAndKnn } from "@/lib/api/chat";
 import { getStudentId, setStudentId, clearStudentId } from "@/lib/storage";
 
 export default function ChatSection() {
@@ -83,38 +82,6 @@ export default function ChatSection() {
       : trimmed;
 
     // Optimistically render user message
-    setMessages((prev) => [
-      ...prev,
-      { text: messageText, sender: "user", file: uploadedFile },
-    ]);
-
-    // Reset input and file picker
-    setInputValue("");
-    setUploadedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    setIsSending(true);
-    try {
-      const currentId = getStudentId();
-      const { answer, studentId } = await processMessage({
-        text: trimmed,
-        studentId: currentId ?? undefined,
-      });
-
-      if (studentId != null) {
-        setStudentId(studentId);
-  const handleSend = async () => {
-    if (isSending) return;
-    const trimmed = inputValue.trim();
-    if (!trimmed && !uploadedFile) return;
-
-    const messageText = uploadedFile 
-      ? `${trimmed ? trimmed : ""} 📎 ${uploadedFile.name}`
-      : trimmed;
-
-    // Optimistically render user message
     setMessages((prev) => [...prev, { text: messageText, sender: "user", file: uploadedFile }]);
 
     // Reset input and file picker
@@ -135,10 +102,7 @@ export default function ChatSection() {
       }
 
       if (answer && answer.trim()) {
-        setMessages((prev) => [
-          ...prev,
-          { text: answer, sender: "assistant" },
-        ]);
+        setMessages((prev) => [...prev, { text: answer, sender: "assistant" }]);
       } else {
         showToast("Agent još nema odgovor.", "info");
       }
@@ -159,10 +123,64 @@ export default function ChatSection() {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleEmbedOnGraph = async () => {
+    const currentId = getStudentId();
+    if (currentId == null) {
+      showToast("Nema aktivnog razgovora.", "warning");
+      return;
+    }
+    try {
+      const { neighbors, studentId, name } = await embedStudentAndKnn({ studentId: currentId });
+      if (Array.isArray(neighbors) && neighbors.length > 0) {
+        const labels = neighbors.map(n => n?.label || n?.name || "").filter(Boolean).slice(0, 3);
+        const msg = labels.length ? `Dodano! Najbliži: ${labels.join(", ")}` : "Dodano!";
+        showToast(msg, "success");
+        // Emit event for the NetworkGraph to add the node and edges
+        if (typeof window !== "undefined") {
+          try {
+            window.dispatchEvent(new CustomEvent("addStudentNode", { detail: { studentId, name, neighbors } }));
+            // Also emit neighbors to side lists (exclude student node)
+            const faculties = neighbors
+              .filter((n) => (n?.type === "faculty"))
+              .map((n) => ({
+                label: (n?.label || "").trim(),
+                abbreviation: (n?.abbreviation || "").trim(),
+                distance: typeof n?.distance === "number" ? n.distance : null,
+                cluster: n?.cluster ?? null,
+              }));
+            const organisations = neighbors
+              .filter((n) => (n?.type === "organisation"))
+              .map((n) => ({
+                name: (n?.label || n?.name || "").trim(),
+                abbreviation: (n?.abbreviation || "").trim(),
+                distance: typeof n?.distance === "number" ? n.distance : null,
+                cluster: n?.cluster ?? null,
+              }));
+            window.dispatchEvent(new CustomEvent("studentNeighbors", { detail: { name, faculties, organisations } }));
+          } catch {
+            // ignore
+          }
+        }
+      } else {
+        showToast("Uspješno spremljeno. Nema pronađenih susjeda.", "info");
+      }
+    } catch (error) {
+      const status = error?.status;
+      const msg = error?.message || "Došlo je do pogreške.";
+      if (status === 404) {
+        showToast("Korisnik nije pronađen.", "warning");
+      } else if (status === 400) {
+        showToast(msg, "error");
+      } else {
+        showToast("Greška mreže ili poslužitelja. Pokušajte ponovo.", "error");
+      }
     }
   };
 
@@ -324,78 +342,74 @@ export default function ChatSection() {
                     </button>
                   </div>
                 )}
-                <div
-                  className="flex items-end space-x-4"
-                <div 
-                  className="flex items-center space-x-4 min-h-[60px]"
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                >
-                  <div className="flex-1 relative h-full min-h-[60px]">
-                    <textarea
-                      ref={textareaRef}
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      onFocus={handleInputFocus}
-                      onBlur={handleInputBlur}
-                      placeholder="Upišite svoju poruku..."
-                      className="absolute inset-0 w-full h-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-auto scrollbar-hide"
-                      style={{ 
-                        lineHeight: '1.5rem',
-                        paddingTop: '1.125rem',
-                        paddingBottom: '1.125rem',
-                        boxSizing: 'border-box'
-                      }}
-                      rows={1}
-                      disabled={isSending}
-                    />
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      id="pdf-upload"
-                    />
-                    <Tooltip text="Dodaj PDF datoteku (npr. CV)">
-                      <label
-                        htmlFor="pdf-upload"
-                        className="absolute right-2 bottom-2 p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        aria-label="Dodaj PDF datoteku"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </label>
-                    </Tooltip>
-                      disabled={isSending}
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20">
-                      <Tooltip text="Dodaj na mrezu fakulteta" position="top">
-                        <button
-                          type="button"
-                          className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          aria-label="Dodaj na mrezu fakulteta"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      </Tooltip>
+                <div className="flex items-end space-x-4">
+                  <div 
+                    className="flex items-center space-x-4 min-h-[60px] flex-1"
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                  >
+                    <div className="flex-1 relative h-full min-h-[60px]">
+                      <textarea
+                        ref={textareaRef}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        onFocus={handleInputFocus}
+                        onBlur={handleInputBlur}
+                        placeholder="Upišite svoju poruku..."
+                        className="absolute inset-0 w-full h-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-auto scrollbar-hide"
+                        style={{ 
+                          lineHeight: '1.5rem',
+                          paddingTop: '1.125rem',
+                          paddingBottom: '1.125rem',
+                          boxSizing: 'border-box'
+                        }}
+                        rows={1}
+                        disabled={isSending}
+                      />
                     </div>
                   </div>
-                  <RippleButton
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="pdf-upload"
+                  />
+                  <Tooltip text="Dodaj PDF datoteku (npr. CV)">
+                    <label
+                      htmlFor="pdf-upload"
+                      className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      aria-label="Dodaj PDF datoteku"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </label>
+                  </Tooltip>
+                  <Tooltip text="Dodaj na mrezu fakulteta" position="top">
+                    <button
+                      type="button"
+                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      aria-label="Dodaj na mrezu fakulteta"
+                      onClick={handleEmbedOnGraph}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </Tooltip>
+                  <button
+                    type="button"
                     onClick={handleSend}
-                    disabled={isSending || (!inputValue.trim() && !uploadedFile)}
                     disabled={isSending || (!inputValue.trim() && !uploadedFile)}
                     className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
                     aria-label="Pošalji poruku"
                     style={{ alignSelf: 'center' }}
                   >
                     {isSending ? "Slanje..." : "Pošalji"}
-                    {isSending ? "Slanje..." : "Pošalji"}
-                  </RippleButton>
+                  </button>
                 </div>
               </div>
 

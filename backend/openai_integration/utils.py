@@ -5,6 +5,7 @@ import os
 from openai import OpenAI
 import re
 import urllib.parse
+from typing import Sequence
 
 
 def append_message_and_build_payload(student: Student, text: str) -> Dict[str, Any]:
@@ -188,5 +189,20 @@ def generate_unizg_reply(input_text: str, chat_history: List[dict]) -> str:
     )
     raw = resp.output_text or ""
     return sanitize_assistant_text(raw)
+
+
+def generate_text_embedding(text: str) -> List[float]:
+    """
+    Generate an OpenAI embedding vector for the provided text.
+    """
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("text must be a non-empty string")
+    client = _get_openai_client()
+    resp = client.embeddings.create(model="text-embedding-3-small", input=[text])
+    if not resp.data or not getattr(resp.data[0], "embedding", None):
+        raise RuntimeError("Embedding API returned no embedding")
+    # Ensure plain float list for JSON serialization
+    emb: Sequence[float] = resp.data[0].embedding
+    return [float(x) for x in emb]
 
 

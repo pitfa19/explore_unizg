@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.http import HttpResponse
-from openai_integration.views import process_message
+from openai_integration.views import process_message, embed_student_and_knn
 from graph_integration.views import upsert_faculty, list_faculty_edges, get_faculty, info
 
 
@@ -27,6 +27,7 @@ def home(_request):
 urlpatterns = [
     path('', home, name='home'),
     path('api/message/', process_message, name='process_message'),
+    path('api/embed-student/', embed_student_and_knn, name='embed_student_and_knn'),
     path('api/faculties/upsert/', upsert_faculty, name='upsert_faculty'),
     path('api/faculties/edges/', list_faculty_edges, name='list_faculty_edges'),
     path('api/faculties/get/', get_faculty, name='get_faculty'),

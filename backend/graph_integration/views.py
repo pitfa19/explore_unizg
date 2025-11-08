@@ -185,7 +185,9 @@ def get_faculty(request: HttpRequest):
         return _add_cors_headers(request, JsonResponse({"error": "Faculty not found"}, status=404))
 
     clean_name = re.sub(r"\s*\(UNIZG\)\s*$", "", (faculty.name or "").strip())
+    # Direct KNN edges of the faculty
     edges = []
+    direct_neighbor_labels = []
     for e in (faculty.knn_edges or []):
         # Prefer label; fallback for backward compatibility
         dst_label = (e.get("neighbor_label") or "").strip()
@@ -194,6 +196,80 @@ def get_faculty(request: HttpRequest):
         if not dst_label:
             continue
         edges.append({"to": dst_label, "distance": float(e.get("distance") or 0.0)})
+        direct_neighbor_labels.append(dst_label)
+
+    # Build lookup maps to resolve labels <-> faculties
+    def _clean_name_local(text: str) -> str:
+        return re.sub(r"\s*\(UNIZG\)\s*$", "", (text or "").strip())
+    all_faculties = list(Faculty.objects.all())
+    label_to_faculty = {}
+    for f in all_faculties:
+        lbl = _clean_name_local(f.name)
+        if lbl:
+            label_to_faculty[lbl] = f
+
+    # Collect KNN edges of the neighbors (second-degree edges)
+    neighbor_knn_edges = []
+    second_degree_labels = []
+    for neigh_label in direct_neighbor_labels:
+        neigh_fac = label_to_faculty.get(neigh_label)
+        if not neigh_fac:
+            continue
+        for e in (neigh_fac.knn_edges or []):
+            dst_label = (e.get("neighbor_label") or "").strip()
+            if not dst_label:
+                dst_label = (e.get("neighbor_abbreviation") or "").strip()
+            if not dst_label:
+                continue
+            neighbor_knn_edges.append({
+                "from": neigh_label,
+                "to": dst_label,
+                "distance": float(e.get("distance") or 0.0),
+            })
+            second_degree_labels.append(dst_label)
+
+    # Build a concise list of related faculties (union of direct + second-degree)
+    related_faculty_labels = []
+    seen_labels = set()
+    for lbl in direct_neighbor_labels + second_degree_labels:
+        if lbl and lbl not in seen_labels and lbl != clean_name:
+            related_faculty_labels.append(lbl)
+            seen_labels.add(lbl)
+    faculties_list = []
+    for lbl in related_faculty_labels:
+        fac = label_to_faculty.get(lbl)
+        faculties_list.append({
+            "label": lbl,
+            "abbreviation": (fac.abbreviation if fac else "") or "",
+            "cluster": (fac.cluster if fac else None),
+        })
+
+    # Related organisations: organisations that reference this faculty or any direct neighbor by label
+    anchor_labels = set([clean_name] + direct_neighbor_labels)
+    orgs = list(Organisation.objects.all())
+    organisations_list = []
+    for o in orgs:
+        min_dist = None
+        matched = False
+        for e in (o.knn_edges or []):
+            dst_label = (e.get("neighbor_label") or "").strip()
+            if not dst_label:
+                continue
+            if dst_label in anchor_labels:
+                matched = True
+                try:
+                    d = float(e.get("distance") or 0.0)
+                except Exception:
+                    d = 0.0
+                if (min_dist is None) or (d < min_dist):
+                    min_dist = d
+        if matched:
+            organisations_list.append({
+                "name": (o.name or "").strip(),
+                "abbreviation": (o.abbreviation or "").strip(),
+                "cluster": o.cluster,
+                "distance": min_dist if min_dist is not None else 0.0,
+            })
 
     return _add_cors_headers(
         request,
@@ -202,7 +278,13 @@ def get_faculty(request: HttpRequest):
                 "abbreviation": faculty.abbreviation,
                 "name": clean_name,
                 "cluster": faculty.cluster,
+                # Backward compatible: keep "edges" as direct KNN edges
                 "edges": edges,
+                # New fields:
+                "knn_edges": edges,
+                "neighbor_knn_edges": neighbor_knn_edges,
+                "faculties": faculties_list,
+                "organisations": organisations_list,
             }
         ),
     )
