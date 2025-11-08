@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 from .models import Student, MessageItem, Conversation
-from .utils import append_message_and_build_payload
+from .utils import append_message_and_build_payload, generate_unizg_reply
 
 @csrf_exempt
 @require_http_methods(["POST", "OPTIONS"])
@@ -51,8 +51,11 @@ def process_message(request: HttpRequest):
     now_iso = datetime.now(timezone.utc).isoformat()
     messages = list(student.messages or [])
 
-    # Stub agent reply
-    agent_reply = "..."
+    # Generate real assistant reply via OpenAI Responses API
+    try:
+        agent_reply = generate_unizg_reply(payload["input_as_text"], payload["chat_history"]).strip() or "..."
+    except Exception as e:
+        return _add_cors_headers(JsonResponse({"error": f"Assistant error: {e}"}, status=500))
     try:
         agent_msg = MessageItem(role="agent", content=agent_reply, created_at=now_iso)
         messages.append(agent_msg.model_dump(mode="json"))
