@@ -1,0 +1,640 @@
+[
+  {
+    "abbreviation": "AGR",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet elektrotehnike i računarstva",
+        "distance": 0.08831633009980284
+      },
+      {
+        "neighbor_label": "Stomatološki fakultet",
+        "distance": 0.09183208100205935
+      },
+      {
+        "neighbor_label": "Prirodoslovno‑matematički fakultet",
+        "distance": 0.12116149794693751
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.06422839647585449,
+      "y": 0.0022736317692994812
+    }
+  },
+  {
+    "abbreviation": "AF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet šumarstva i drvne tehnologije",
+        "distance": 0.04400144953871722
+      },
+      {
+        "neighbor_label": "Grafički fakultet",
+        "distance": 0.04757022948414947
+      },
+      {
+        "neighbor_label": "Građevinski fakultet",
+        "distance": 0.05505613257500682
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.12639335081731373,
+      "y": -0.13817873443912598
+    }
+  },
+  {
+    "abbreviation": "ERF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.02663891065374911
+      },
+      {
+        "neighbor_label": "Učiteljski fakultet",
+        "distance": 0.05087832128779334
+      },
+      {
+        "neighbor_label": "Katolički bogoslovni fakultet",
+        "distance": 0.09566014017912554
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": 0.11260233258899599,
+      "y": 0.09889216271426259
+    }
+  },
+  {
+    "abbreviation": "EFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Edukacijsko‑rehabilitacijski fakultet",
+        "distance": 0.02663891065374911
+      },
+      {
+        "neighbor_label": "Učiteljski fakultet",
+        "distance": 0.07489334290594082
+      },
+      {
+        "neighbor_label": "Stomatološki fakultet",
+        "distance": 0.09114552193385438
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": 0.08693702700343263,
+      "y": 0.0917560818558307
+    }
+  },
+  {
+    "abbreviation": "FER",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet kemijskog inženjerstva i tehnologije",
+        "distance": 0.06996559919847836
+      },
+      {
+        "neighbor_label": "Fakultet strojarstva i brodogradnje",
+        "distance": 0.07113176476532723
+      },
+      {
+        "neighbor_label": "Agronomski fakultet",
+        "distance": 0.08831633009980284
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.1524418327179336,
+      "y": -0.0019882725775842015
+    }
+  },
+  {
+    "abbreviation": "FFRZ",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.019811813722038468
+      },
+      {
+        "neighbor_label": "Filozofski fakultet",
+        "distance": 0.03422171866253455
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.07130344755906465
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.2635057808731631,
+      "y": -0.12712713479777824
+    }
+  },
+  {
+    "abbreviation": "FHS",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.05158651094078373
+      },
+      {
+        "neighbor_label": "Filozofski fakultet",
+        "distance": 0.05389794542027658
+      },
+      {
+        "neighbor_label": "Fakultet filozofije i religijskih znanosti",
+        "distance": 0.07130344755906465
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.290948404029656,
+      "y": -0.19293810704480557
+    }
+  },
+  {
+    "abbreviation": "FKIT",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet elektrotehnike i računarstva",
+        "distance": 0.06996559919847836
+      },
+      {
+        "neighbor_label": "Tekstilno‑tehnološki fakultet",
+        "distance": 0.0928233576482378
+      },
+      {
+        "neighbor_label": "Fakultet strojarstva i brodogradnje",
+        "distance": 0.113839861701308
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.21537823566349965,
+      "y": 0.028576318953719818
+    }
+  },
+  {
+    "abbreviation": "FPZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet filozofije i religijskih znanosti",
+        "distance": 0.019811813722038468
+      },
+      {
+        "neighbor_label": "Filozofski fakultet",
+        "distance": 0.02679420361213204
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.05158651094078373
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.2695842417774132,
+      "y": -0.14598344079848408
+    }
+  },
+  {
+    "abbreviation": "FPZ",
+    "knn_edges": [
+      {
+        "neighbor_label": "Arhitektonski fakultet",
+        "distance": 0.13153965922182784
+      },
+      {
+        "neighbor_label": "Geodetski fakultet",
+        "distance": 0.1365889382398923
+      },
+      {
+        "neighbor_label": "Građevinski fakultet",
+        "distance": 0.13741731916116284
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": 0.0050577429211195865,
+      "y": -0.14300490301929533
+    }
+  },
+  {
+    "abbreviation": "FSB",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet šumarstva i drvne tehnologije",
+        "distance": 0.03121761453669934
+      },
+      {
+        "neighbor_label": "Tekstilno‑tehnološki fakultet",
+        "distance": 0.056917062182122176
+      },
+      {
+        "neighbor_label": "Fakultet elektrotehnike i računarstva",
+        "distance": 0.07113176476532723
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.16275153733437045,
+      "y": -0.07236893717626265
+    }
+  },
+  {
+    "abbreviation": "FŠDT",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet strojarstva i brodogradnje",
+        "distance": 0.03121761453669934
+      },
+      {
+        "neighbor_label": "Arhitektonski fakultet",
+        "distance": 0.04400144953871722
+      },
+      {
+        "neighbor_label": "Tekstilno‑tehnološki fakultet",
+        "distance": 0.08038457880352666
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.14669465451153285,
+      "y": -0.09914048870723681
+    }
+  },
+  {
+    "abbreviation": "FBF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.07568489480523254
+      },
+      {
+        "neighbor_label": "Edukacijsko‑rehabilitacijski fakultet",
+        "distance": 0.1154230691104194
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.12160934297534239
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": 0.09560167878305358,
+      "y": 0.21305635435524584
+    }
+  },
+  {
+    "abbreviation": "FFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.02679420361213204
+      },
+      {
+        "neighbor_label": "Fakultet filozofije i religijskih znanosti",
+        "distance": 0.03422171866253455
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.05389794542027658
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.2955144029285906,
+      "y": -0.13923391563871473
+    }
+  },
+  {
+    "abbreviation": "GF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Građevinski fakultet",
+        "distance": 0.027123687505030053
+      },
+      {
+        "neighbor_label": "Grafički fakultet",
+        "distance": 0.042475825665535406
+      },
+      {
+        "neighbor_label": "Arhitektonski fakultet",
+        "distance": 0.0804364939057143
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.1098228277630762,
+      "y": -0.21688989830774755
+    }
+  },
+  {
+    "abbreviation": "GFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Grafički fakultet",
+        "distance": 0.016784085448461154
+      },
+      {
+        "neighbor_label": "Geodetski fakultet",
+        "distance": 0.027123687505030053
+      },
+      {
+        "neighbor_label": "Arhitektonski fakultet",
+        "distance": 0.05505613257500682
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.12289397236115805,
+      "y": -0.1931235438803946
+    }
+  },
+  {
+    "abbreviation": "GRF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Građevinski fakultet",
+        "distance": 0.016784085448461154
+      },
+      {
+        "neighbor_label": "Geodetski fakultet",
+        "distance": 0.042475825665535406
+      },
+      {
+        "neighbor_label": "Arhitektonski fakultet",
+        "distance": 0.04757022948414947
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.1372845348021315,
+      "y": -0.18448541694374396
+    }
+  },
+  {
+    "abbreviation": "KBF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Učiteljski fakultet",
+        "distance": 0.060591651890856434
+      },
+      {
+        "neighbor_label": "Edukacijsko‑rehabilitacijski fakultet",
+        "distance": 0.09566014017912554
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.1094119531594274
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": 0.17409256858003916,
+      "y": 0.025613152780614
+    }
+  },
+  {
+    "abbreviation": "KIF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Farmaceutsko‑biokemijski fakultet",
+        "distance": 0.07568489480523254
+      },
+      {
+        "neighbor_label": "Prirodoslovno‑matematički fakultet",
+        "distance": 0.07642955649279441
+      },
+      {
+        "neighbor_label": "Prehrambeno‑biotehnološki fakultet",
+        "distance": 0.07878312477381426
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": 0.030304724766431534,
+      "y": 0.17478742312075404
+    }
+  },
+  {
+    "abbreviation": "MEF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Veterinarski fakultet",
+        "distance": 0.022466521930803163
+      },
+      {
+        "neighbor_label": "Farmaceutsko‑biokemijski fakultet",
+        "distance": 0.19877320871902382
+      },
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.2140738017060995
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": -0.0015309879242309473,
+      "y": 0.3864807862060903
+    }
+  },
+  {
+    "abbreviation": "SIMET",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet kemijskog inženjerstva i tehnologije",
+        "distance": 0.155214252625451
+      },
+      {
+        "neighbor_label": "Tekstilno‑tehnološki fakultet",
+        "distance": 0.2158368555878719
+      },
+      {
+        "neighbor_label": "Fakultet elektrotehnike i računarstva",
+        "distance": 0.224983500990959
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.348319393487205,
+      "y": 0.10868944381207238
+    }
+  },
+  {
+    "abbreviation": "PFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet filozofije i religijskih znanosti",
+        "distance": 0.0779182367131965
+      },
+      {
+        "neighbor_label": "Filozofski fakultet",
+        "distance": 0.08723854181751364
+      },
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.09489097737949476
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.2859739847306764,
+      "y": -0.05251861364964832
+    }
+  },
+  {
+    "abbreviation": "PBF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Prirodoslovno‑matematički fakultet",
+        "distance": 0.03213873493239488
+      },
+      {
+        "neighbor_label": "Stomatološki fakultet",
+        "distance": 0.07469434581689503
+      },
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.07878312477381426
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": -0.03747397651209768,
+      "y": 0.13462738823378853
+    }
+  },
+  {
+    "abbreviation": "PMF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Prehrambeno‑biotehnološki fakultet",
+        "distance": 0.03213873493239488
+      },
+      {
+        "neighbor_label": "Stomatološki fakultet",
+        "distance": 0.045169915913477306
+      },
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.07642955649279441
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": -0.014093716452253243,
+      "y": 0.1125760453588346
+    }
+  },
+  {
+    "abbreviation": "RGNF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Tekstilno‑tehnološki fakultet",
+        "distance": 0.08994311736355123
+      },
+      {
+        "neighbor_label": "Grafički fakultet",
+        "distance": 0.0996232508541767
+      },
+      {
+        "neighbor_label": "Fakultet šumarstva i drvne tehnologije",
+        "distance": 0.10088234561760785
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.23186858036881558,
+      "y": -0.15320202782118164
+    }
+  },
+  {
+    "abbreviation": "SFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Prirodoslovno‑matematički fakultet",
+        "distance": 0.045169915913477306
+      },
+      {
+        "neighbor_label": "Prehrambeno‑biotehnološki fakultet",
+        "distance": 0.07469434581689503
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.09114552193385438
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": -0.0013815111250469728,
+      "y": 0.06923182845104447
+    }
+  },
+  {
+    "abbreviation": "TTF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Fakultet strojarstva i brodogradnje",
+        "distance": 0.056917062182122176
+      },
+      {
+        "neighbor_label": "Fakultet šumarstva i drvne tehnologije",
+        "distance": 0.08038457880352666
+      },
+      {
+        "neighbor_label": "Rudarsko‑geološko‑naftni fakultet",
+        "distance": 0.08994311736355123
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": -0.21907546450427315,
+      "y": -0.06417337767107578
+    }
+  },
+  {
+    "abbreviation": "UFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Edukacijsko‑rehabilitacijski fakultet",
+        "distance": 0.05087832128779334
+      },
+      {
+        "neighbor_label": "Katolički bogoslovni fakultet",
+        "distance": 0.060591651890856434
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.07489334290594082
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": 0.16151450167729656,
+      "y": 0.08488490416230389
+    }
+  },
+  {
+    "abbreviation": "VEF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Medicinski fakultet",
+        "distance": 0.022466521930803163
+      },
+      {
+        "neighbor_label": "Farmaceutsko‑biokemijski fakultet",
+        "distance": 0.19510017932777293
+      },
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.2183673511050775
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.01999558216092467,
+      "y": 0.39291129069921854
+    }
+  }
+]

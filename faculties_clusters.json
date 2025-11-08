@@ -1,0 +1,118 @@
+[
+  {
+    "abbreviation": "AGR",
+    "cluster": 0
+  },
+  {
+    "abbreviation": "AF",
+    "cluster": 6
+  },
+  {
+    "abbreviation": "ERF",
+    "cluster": 2
+  },
+  {
+    "abbreviation": "EFZG",
+    "cluster": 2
+  },
+  {
+    "abbreviation": "FER",
+    "cluster": 0
+  },
+  {
+    "abbreviation": "FFRZ",
+    "cluster": 1
+  },
+  {
+    "abbreviation": "FHS",
+    "cluster": 1
+  },
+  {
+    "abbreviation": "FKIT",
+    "cluster": 5
+  },
+  {
+    "abbreviation": "FPZG",
+    "cluster": 1
+  },
+  {
+    "abbreviation": "FPZ",
+    "cluster": 6
+  },
+  {
+    "abbreviation": "FSB",
+    "cluster": 0
+  },
+  {
+    "abbreviation": "FŠDT",
+    "cluster": 0
+  },
+  {
+    "abbreviation": "FBF",
+    "cluster": 2
+  },
+  {
+    "abbreviation": "FFZG",
+    "cluster": 1
+  },
+  {
+    "abbreviation": "GF",
+    "cluster": 6
+  },
+  {
+    "abbreviation": "GFZG",
+    "cluster": 6
+  },
+  {
+    "abbreviation": "GRF",
+    "cluster": 6
+  },
+  {
+    "abbreviation": "KBF",
+    "cluster": 2
+  },
+  {
+    "abbreviation": "KIF",
+    "cluster": 4
+  },
+  {
+    "abbreviation": "MEF",
+    "cluster": 3
+  },
+  {
+    "abbreviation": "SIMET",
+    "cluster": 5
+  },
+  {
+    "abbreviation": "PFZG",
+    "cluster": 1
+  },
+  {
+    "abbreviation": "PBF",
+    "cluster": 4
+  },
+  {
+    "abbreviation": "PMF",
+    "cluster": 4
+  },
+  {
+    "abbreviation": "RGNF",
+    "cluster": 0
+  },
+  {
+    "abbreviation": "SFZG",
+    "cluster": 4
+  },
+  {
+    "abbreviation": "TTF",
+    "cluster": 0
+  },
+  {
+    "abbreviation": "UFZG",
+    "cluster": 2
+  },
+  {
+    "abbreviation": "VEF",
+    "cluster": 3
+  }
+]
