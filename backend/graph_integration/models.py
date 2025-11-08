@@ -12,6 +12,7 @@ class Faculty(models.Model):
     keywords = models.TextField(blank=True)
     url = models.URLField(max_length=500, blank=True)
     embedding = models.JSONField(null=True, blank=True, default=None)
+    cluster = models.IntegerField(null=True, blank=True, default=None)
     knn_edges = models.JSONField(default=list, blank=True)
 
     def __str__(self) -> str:
