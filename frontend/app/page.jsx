@@ -1,5 +1,4 @@
 import { Suspense, lazy } from "react";
-import ChatSection from "@/components/home/ChatSection";
 import ExploreSection from "@/components/home/ExploreSection";
 import HeroSection from "@/components/home/HeroSection";
 import BackgroundGradient from "@/components/ui/BackgroundGradient";
@@ -54,21 +53,15 @@ export default function Home() {
         </div>
         {/* Visual Separator */}
         <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent my-8 md:my-12" />
+        <ExploreSection />
+        
+        {/* Visual Separator */}
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent my-8 md:my-12" />
         
         {/* Lazy loaded NetworkGraph */}
         <Suspense fallback={<NetworkGraphSkeleton />}>
           <NetworkGraph />
         </Suspense>
-        
-        {/* Visual Separator */}
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent my-8 md:my-12" />
-        
-        <ChatSection />
-        
-        {/* Visual Separator */}
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent my-8 md:my-12" />
-        
-        <ExploreSection />
         
         {/* Visual Separator */}
         <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent my-8 md:my-12" />

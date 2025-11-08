@@ -15,6 +15,7 @@ export default function ChatSection() {
   const [isSending, setIsSending] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isCvModalOpen, setIsCvModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const inputAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -212,6 +213,19 @@ export default function ChatSection() {
     e.preventDefault();
   };
 
+  const openCvModal = () => setIsCvModalOpen(true);
+  const closeCvModal = () => setIsCvModalOpen(false);
+  const handleChooseUploadCv = () => {
+    closeCvModal();
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  const handleChooseCreateAICv = () => {
+    closeCvModal();
+    showToast("AI CV kreator uskoro!", "info");
+  };
+
   const removeFile = () => {
     setUploadedFile(null);
     if (fileInputRef.current) {
@@ -232,6 +246,60 @@ export default function ChatSection() {
     }
   };
 
+  const navigateToSection = (id) => {
+    try {
+      const el = document.getElementById(id);
+      if (el && typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Temporary highlight for visual feedback
+        el.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-blue-500", "ring-offset-2");
+        }, 1200);
+      } else {
+        window.location.hash = id;
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const renderAssistantText = (text) => {
+    const phraseMap = {
+      "Pregled poslova": "poslovi",
+      "Događaji ovog tjedna": "dogadaji",
+      "Studentske udruge": "udruge",
+      "Fakulteti": "fakulteti",
+    };
+    const phrases = Object.keys(phraseMap);
+    if (!text || phrases.length === 0) {
+      return <p className="text-sm">{text}</p>;
+    }
+    const pattern = new RegExp(`(${phrases.join("|")})`, "gu");
+    const parts = text.split(pattern);
+    const nodes = parts.map((part, idx) => {
+      if (phrases.includes(part)) {
+        const id = phraseMap[part];
+        return (
+          <a
+            key={`lnk-${idx}`}
+            href={`/#${id}`}
+            onClick={(e) => {
+              e.preventDefault();
+              navigateToSection(id);
+            }}
+            className="inline-flex items-center px-3 py-1.5 mx-1 my-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-900/70 text-xs md:text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-500 shadow-sm transition-colors"
+            aria-label={`Idi na odjeljak ${part}`}
+          >
+            {part}
+          </a>
+        );
+      }
+      return <span key={`txt-${idx}`}>{part}</span>;
+    });
+    return <p className="text-sm">{nodes}</p>;
+  };
+
   return (
     <section
       className={`w-full py-20 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative transition-all duration-300 ${
@@ -240,9 +308,6 @@ export default function ChatSection() {
     >
       <div className={`max-w-4xl mx-auto ${isInputFocused || isExpanded ? "pb-20 md:pb-28" : ""}`}>
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-            Postavite pitanja
-          </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400">
             Razgovarajte s našim asistentom
           </p>
@@ -303,7 +368,11 @@ export default function ChatSection() {
                                 : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
                             }`}
                           >
+                          {message.sender === "assistant" ? (
+                            renderAssistantText(message.text)
+                          ) : (
                             <p className="text-sm">{message.text}</p>
+                          )}
                           </div>
                         </motion.div>
                       ))}
@@ -377,16 +446,20 @@ export default function ChatSection() {
                     className="hidden"
                     id="pdf-upload"
                   />
-                  <Tooltip text="Dodaj PDF datoteku (npr. CV)">
-                    <label
-                      htmlFor="pdf-upload"
-                      className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                      aria-label="Dodaj PDF datoteku"
+                  <Tooltip text="CV opcije (učitaj ili AI CV)">
+                    <button
+                      type="button"
+                      onClick={openCvModal}
+                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      aria-label="Otvori CV opcije"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                    </label>
+                      <span className="relative inline-flex items-center justify-center">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span className="absolute -right-2 -bottom-1 text-[9px] font-bold text-blue-600 dark:text-blue-400 select-none">CV</span>
+                      </span>
+                    </button>
                   </Tooltip>
                   <Tooltip text="Dodaj na mrezu fakulteta" position="top">
                     <button
@@ -452,6 +525,48 @@ export default function ChatSection() {
           </div>
         </CardSpotlight>
       </div>
+      {isCvModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cv-modal-title"
+        >
+          <div className="absolute inset-0 bg-black/40" onClick={closeCvModal} />
+          <div className="relative mx-4 w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl p-6">
+            <div className="mb-4">
+              <h3 id="cv-modal-title" className="text-lg font-semibold text-gray-900 dark:text-white">Odaberite opciju za CV</h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Učitajte svoj postojeći CV ili izradite AI CV.</p>
+            </div>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleChooseUploadCv}
+                className="w-full px-4 py-3 rounded-xl border-2 border-blue-500 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium transition-colors"
+              >
+                Učitaj svoj CV (PDF)
+              </button>
+              <button
+                type="button"
+                onClick={handleChooseCreateAICv}
+                className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 font-medium transition-colors"
+              >
+                Kreiraj AI CV
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={closeCvModal}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              aria-label="Zatvori"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
