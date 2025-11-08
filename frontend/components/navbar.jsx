@@ -41,9 +41,9 @@ const Navbar = () => {
                         <Link 
                             href="/" 
                             className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all"
-                            aria-label="Explore Unizg - Početna"
+                            aria-label="Explore UNIZG - Početna"
                         >
-                            Explore Unizg
+                            Explore UNIZG
                         </Link>
                     </div>
                     <div className="hidden md:flex items-center space-x-6">
@@ -54,6 +54,13 @@ const Navbar = () => {
                         >
                             O nama
                             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
+                        </Link>
+                        <Link
+                            href="/login"
+                            className="inline-flex items-center rounded-xl px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 transition-colors font-semibold shadow-sm"
+                            aria-label="Prijava putem AAI@EduHr"
+                        >
+                            Prijava
                         </Link>
                         <Tooltip text="Promijeni temu">
                         <ThemeToggle />
@@ -121,6 +128,13 @@ const Navbar = () => {
                                     className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors py-2"
                                 >
                                     O nama
+                                </Link>
+                                <Link
+                                    href="/login"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors py-2"
+                                >
+                                    Prijava
                                 </Link>
                                 <a
                                     href="#explore"

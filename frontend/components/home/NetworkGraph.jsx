@@ -365,7 +365,7 @@ const NetworkGraph = memo(function NetworkGraph() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
-            Mrežni klasteri
+            Vizualizacija podataka
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Povezivanje FER-a s studentskim udrugama i tvrtkama iz industrije; primjer
