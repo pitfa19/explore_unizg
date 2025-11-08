@@ -18,6 +18,7 @@ class Conversation(RootModel[List[MessageItem]]):
 class Student(models.Model):
     name = models.CharField(max_length=255)
     messages = JSONField(default=list, blank=True)
+    embedding = JSONField(null=True, blank=True, default=None)
 
     def __str__(self) -> str:
         return self.name
