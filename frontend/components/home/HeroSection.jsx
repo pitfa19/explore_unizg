@@ -1,15 +1,44 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
 const HeroSection = memo(function HeroSection() {
-  const stats = [
-    { value: "50+", label: "Fakulteta" },
-    { value: "100+", label: "Udruga" },
-    { value: "500+", label: "Prijava" },
-  ];
+  const [stats, setStats] = useState([
+    { value: "0", label: "Fakulteta" },
+    { value: "0", label: "Udruga" },
+    { value: "0", label: "Prijava" },
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadInfo() {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+        const url = `${baseUrl}/api/info/`;
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const faculties = Number(data?.faculties_count ?? 0);
+        const orgs = Number(data?.organisations_count ?? 0);
+        const students = Number(data?.students_count ?? 0);
+        if (!cancelled) {
+          setStats((prev) => [
+            { ...prev[0], value: String(faculties) },
+            { ...prev[1], value: String(orgs) },
+            { ...prev[2], value: String(students) },
+          ]);
+        }
+      } catch (_e) {
+        // ignore and keep defaults
+      }
+    }
+    loadInfo();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section className="relative w-full py-20 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">

@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.http import HttpResponse
 from openai_integration.views import process_message
-from graph_integration.views import upsert_faculty, list_faculty_edges, get_faculty_name
+from graph_integration.views import upsert_faculty, list_faculty_edges, get_faculty, info
 
 
 def home(_request):
@@ -29,7 +29,8 @@ urlpatterns = [
     path('api/message/', process_message, name='process_message'),
     path('api/faculties/upsert/', upsert_faculty, name='upsert_faculty'),
     path('api/faculties/edges/', list_faculty_edges, name='list_faculty_edges'),
-    path('api/faculties/name/', get_faculty_name, name='get_faculty_name'),
+    path('api/faculties/get/', get_faculty, name='get_faculty'),
+    path('api/info/', info, name='info'),
     path('admin/', admin.site.urls),
 ]
 

@@ -50,7 +50,7 @@ def _get_openai_client() -> OpenAI:
     """
     global _openai_client
     if _openai_client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = "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"
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not set in environment")
         _openai_client = OpenAI(api_key=api_key)
