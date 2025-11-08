@@ -23,7 +23,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div className="lg:col-span-2">
             <h3 className="text-xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Explore Unizg
+              Explore UNIZG
             </h3>
             <p className="text-gray-300 text-sm mb-4 leading-relaxed max-w-md">
               Za studente, od strane studenata. Povezivanje studenata s prilikama, udrugama i fakultetima Sveučilišta u Zagrebu.
@@ -96,7 +96,7 @@ const Footer = () => {
         <div className="border-t border-slate-700 pt-8 mt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-gray-400">
-            © {new Date().getFullYear()} Explore Unizg. Sva prava pridržana.
+            © {new Date().getFullYear()} Explore UNIZG. Sva prava pridržana.
           </p>
             <div className="flex gap-6 text-sm text-gray-400">
               <a href="#" className="hover:text-blue-400 transition-colors">Pravila privatnosti</a>

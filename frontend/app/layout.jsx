@@ -13,7 +13,7 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "Explore Unizg",
+  title: "Explore UNIZG",
   description: "Za studente, od strane studenata.",
 };
 

@@ -11,6 +11,55 @@ const FakultetiList = memo(function FakultetiList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Load all faculties by default so the list isn't empty before any selection
+  useEffect(() => {
+    let cancelled = false;
+    const loadAllFaculties = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+        const url = `${baseUrl}/api/faculties/edges/`;
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) {
+          throw new Error(`Greška ${res.status}`);
+        }
+        const data = await res.json();
+        const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+        const unique = [];
+        const seen = new Set();
+        for (const n of nodes) {
+          if ((n?.type || "").trim() !== "faculty") continue;
+          const key = (n?.label || n?.id || "").trim();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          unique.push({
+            id: key,
+            name: key,
+            abbreviation: (n?.data?.abbreviation || "").trim(),
+            cluster: n?.cluster ?? null,
+          });
+        }
+        unique.sort((a, b) => a.name.localeCompare(b.name, "hr"));
+        if (!cancelled) {
+          setFaculties(unique);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err?.message || "Greška pri dohvaćanju podataka.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+    loadAllFaculties();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     function onSelected(e) {
       const name = e?.detail?.name;
@@ -110,7 +159,7 @@ const FakultetiList = memo(function FakultetiList() {
 
   return (
     <CardSpotlight className="rounded-2xl">
-      <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 flex flex-col h-full hover:shadow-3xl transition-all duration-300 hover:border-blue-300/50 dark:hover:border-blue-500/30">
+      <div id="fakulteti" className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 flex flex-col h-full hover:shadow-3xl transition-all duration-300 hover:border-blue-300/50 dark:hover:border-blue-500/30">
         <div className="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
             Fakulteti

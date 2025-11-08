@@ -11,27 +11,40 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # With settings.py at the outer backend folder, BASE_DIR is that folder.
 BASE_DIR = Path(__file__).resolve().parent
 
 
+# Load environment variables from backend/.env if present
+load_dotenv(BASE_DIR / ".env")
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#=*$q8-zp(2agjcu&=t_n$8^w2++t%d6w@*p3s6qqeo3moe+p5'
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    raise RuntimeError("DJANGO_SECRET_KEY environment variable is required")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# Keep False for prod; set to True locally if desired
+DEBUG = (os.environ.get("DJANGO_DEBUG", "False").lower() == "true")
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+_hosts_from_env = os.environ.get("DJANGO_ALLOWED_HOSTS")
+ALLOWED_HOSTS = (
+    [h.strip() for h in _hosts_from_env.split(",")] if _hosts_from_env else ["localhost", "127.0.0.1", "192.168.1.147"]
+)
 
 # Allow CSRF from local dev origin on port 8000
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    # Allow Next.js dev origin on LAN
+    "http://192.168.1.147:3000",
 ]
 
 

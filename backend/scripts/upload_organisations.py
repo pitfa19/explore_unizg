@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+from dotenv import load_dotenv
 
 # Ensure project root and backend are importable
 PROJECT_ROOT = Path("/home/pitfa/Documents/explore_unizg").resolve()
@@ -30,8 +31,11 @@ except Exception as e:  # pragma: no cover
     raise RuntimeError("OpenAI SDK not installed. Please install with `pip install openai`.") from e
 
 
-# Keep consistent with existing scripts' style
-OPENAI_API_KEY = "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"
+# Load environment from backend/.env if present
+load_dotenv(str(Path(__file__).resolve().parents[1] / ".env"))
+
+# Keep consistent with existing scripts' style; read key from env
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 if not OPENAI_API_KEY:
     raise RuntimeError(
         "OPENAI_API_KEY environment variable is not set. Export it before running this script."
