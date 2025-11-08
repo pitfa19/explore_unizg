@@ -105,6 +105,33 @@ export default function ChatSection() {
 
       if (studentId != null) {
         setStudentId(studentId);
+  const handleSend = async () => {
+    if (isSending) return;
+    const trimmed = inputValue.trim();
+    if (!trimmed && !uploadedFile) return;
+
+    const messageText = uploadedFile 
+      ? `${trimmed ? trimmed : ""} 📎 ${uploadedFile.name}`
+      : trimmed;
+
+    // Optimistically render user message
+    setMessages((prev) => [...prev, { text: messageText, sender: "user", file: uploadedFile }]);
+
+    // Reset input and file picker
+    setInputValue("");
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    setIsSending(true);
+    try {
+      const currentId = getStudentId();
+      const { answer, studentId } = await processMessage({ text: trimmed, studentId: currentId ?? undefined });
+
+      // Persist/refresh student id
+      if (studentId != null) {
+        setStudentId(studentId);
       }
 
       if (answer && answer.trim()) {
@@ -299,10 +326,12 @@ export default function ChatSection() {
                 )}
                 <div
                   className="flex items-end space-x-4"
+                <div 
+                  className="flex items-center space-x-4 min-h-[60px]"
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                 >
-                  <div className="flex-1 relative">
+                  <div className="flex-1 relative h-full min-h-[60px]">
                     <textarea
                       ref={textareaRef}
                       value={inputValue}
@@ -311,7 +340,13 @@ export default function ChatSection() {
                       onFocus={handleInputFocus}
                       onBlur={handleInputBlur}
                       placeholder="Upišite svoju poruku..."
-                      className="w-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[60px] max-h-[200px] transition-all"
+                      className="absolute inset-0 w-full h-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-auto scrollbar-hide"
+                      style={{ 
+                        lineHeight: '1.5rem',
+                        paddingTop: '1.125rem',
+                        paddingBottom: '1.125rem',
+                        boxSizing: 'border-box'
+                      }}
                       rows={1}
                       disabled={isSending}
                     />
@@ -334,13 +369,31 @@ export default function ChatSection() {
                         </svg>
                       </label>
                     </Tooltip>
+                      disabled={isSending}
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20">
+                      <Tooltip text="Dodaj na mrezu fakulteta" position="top">
+                        <button
+                          type="button"
+                          className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          aria-label="Dodaj na mrezu fakulteta"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </Tooltip>
+                    </div>
                   </div>
                   <RippleButton
                     onClick={handleSend}
                     disabled={isSending || (!inputValue.trim() && !uploadedFile)}
+                    disabled={isSending || (!inputValue.trim() && !uploadedFile)}
                     className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
                     aria-label="Pošalji poruku"
+                    style={{ alignSelf: 'center' }}
                   >
+                    {isSending ? "Slanje..." : "Pošalji"}
                     {isSending ? "Slanje..." : "Pošalji"}
                   </RippleButton>
                 </div>
