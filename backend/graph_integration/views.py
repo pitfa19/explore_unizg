@@ -2,6 +2,7 @@ from django.http import JsonResponse, HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
+import re
 
 from .models import Faculty
 
@@ -10,7 +11,7 @@ def _add_cors_headers(request: HttpRequest, response: JsonResponse) -> JsonRespo
     origin = request.headers.get("Origin") or "*"
     response["Access-Control-Allow-Origin"] = origin
     response["Vary"] = "Origin"
-    response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     acrh = request.headers.get("Access-Control-Request-Headers") or "Content-Type, Authorization"
     response["Access-Control-Allow-Headers"] = acrh
     response["Access-Control-Max-Age"] = "86400"
@@ -75,3 +76,47 @@ def upsert_faculty(request: HttpRequest):
 from django.shortcuts import render
 
 # Create your views here.
+
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def list_faculty_edges(request: HttpRequest):
+    if request.method == "OPTIONS":
+        return _add_cors_headers(request, JsonResponse({}))
+
+    faculties = Faculty.objects.all()
+    items = [
+        {
+            "abbreviation": f.abbreviation,
+            "cluster": f.cluster,
+            "knn_edges": f.knn_edges,
+        }
+        for f in faculties
+    ]
+    return _add_cors_headers(request, JsonResponse({"faculties": items}))
+
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def get_faculty_name(request: HttpRequest):
+    if request.method == "OPTIONS":
+        return _add_cors_headers(request, JsonResponse({}))
+
+    abbr = (request.GET.get("abbreviation") or "").strip()
+    if not abbr:
+        return _add_cors_headers(request, JsonResponse({"error": "abbreviation is required"}, status=400))
+
+    try:
+        faculty = Faculty.objects.get(abbreviation=abbr)
+    except Faculty.DoesNotExist:
+        return _add_cors_headers(request, JsonResponse({"error": "Faculty not found"}, status=404))
+
+    return _add_cors_headers(
+        request,
+        JsonResponse(
+            {
+                "abbreviation": faculty.abbreviation,
+                "name": re.sub(r"\s*\(UNIZG\)\s*$", "", (faculty.name or "").strip()),
+            }
+        ),
+    )

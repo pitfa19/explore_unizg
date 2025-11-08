@@ -2,13 +2,17 @@
 
 import { useState, useEffect, useRef, memo } from "react";
 import { GraphCanvas } from "reagraph";
-import { graphNodes, graphEdges } from "@/data/graphData";
 import CardSpotlight from "@/components/ui/CardSpotlight";
 import { useToast } from "@/components/ui/Toast";
 import { motion } from "motion/react";
 
 const NetworkGraph = memo(function NetworkGraph() {
   const [selectedNode, setSelectedNode] = useState(null);
+  const [selectedName, setSelectedName] = useState(null);
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isDark, setIsDark] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
@@ -52,9 +56,120 @@ const NetworkGraph = memo(function NetworkGraph() {
     return () => observer.disconnect();
   }, []);
 
-  const handleNodeClick = (node) => {
+  // Fetch graph data from backend once the section should render
+  useEffect(() => {
+    if (!shouldRender) return;
+
+    let cancelled = false;
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+        const url = `${baseUrl}/api/faculties/edges/`;
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) {
+          throw new Error(`Request failed: ${res.status}`);
+        }
+        const data = await res.json();
+        const faculties = Array.isArray(data?.faculties) ? data.faculties : [];
+
+        // Map abbreviation -> cluster (can be null/undefined)
+        const abbrToCluster = new Map();
+        for (const f of faculties) {
+          if (f?.abbreviation) {
+            abbrToCluster.set(f.abbreviation, f?.cluster ?? null);
+          }
+        }
+
+        // Build undirected edges, de-duplicated (keep smallest distance)
+        const edgeMap = new Map();
+        const degree = new Map();
+
+        for (const f of faculties) {
+          const a = f?.abbreviation;
+          if (!a) continue;
+          const knn = Array.isArray(f?.knn_edges) ? f.knn_edges : [];
+          for (const e of knn) {
+            const b = e?.neighbor_abbreviation;
+            if (!b) continue;
+            const [s, t] = a < b ? [a, b] : [b, a];
+            const key = `${s}-${t}`;
+            const dist = typeof e?.distance === "number" ? e.distance : Number.POSITIVE_INFINITY;
+            const existing = edgeMap.get(key);
+            if (!existing || existing.data.distance > dist) {
+              edgeMap.set(key, { id: key, source: s, target: t, data: { distance: dist } });
+            }
+            degree.set(a, (degree.get(a) || 0) + 1);
+            degree.set(b, (degree.get(b) || 0) + 1);
+          }
+        }
+
+        const abbreviations = new Set(faculties.map((f) => f.abbreviation).filter(Boolean));
+        for (const { source, target } of edgeMap.values()) {
+          abbreviations.add(source);
+          abbreviations.add(target);
+        }
+
+        // Cluster-based coloring
+        const lightPalette = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#e879f9", "#22c55e", "#f97316", "#06b6d4"];
+        const darkPalette  = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#2dd4bf", "#f472b6", "#4ade80", "#fb923c", "#67e8f9"];
+        const palette = isDark ? darkPalette : lightPalette;
+        const colorForCluster = (clusterValue) => {
+          if (clusterValue === null || clusterValue === undefined) return isDark ? "#60a5fa" : "#2563eb";
+          const idx = Math.abs(Number(clusterValue)) % palette.length;
+          return palette[idx];
+        };
+        const builtNodes = [...abbreviations].map((id) => {
+          const clusterValue = abbrToCluster.get(id) ?? null;
+          return {
+            id,
+            label: id,
+            size: 16 + 2 * (degree.get(id) || 0),
+            data: { cluster: clusterValue, type: "fakultet" },
+            fill: colorForCluster(clusterValue),
+          };
+        });
+        const builtEdges = [...edgeMap.values()];
+
+        if (!cancelled) {
+          setNodes(builtNodes);
+          setEdges(builtEdges);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err?.message || "Greška pri učitavanju grafa");
+          setLoading(false);
+        }
+      }
+    }
+
+    loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldRender, isDark]);
+
+  const handleNodeClick = async (node) => {
     setSelectedNode(node);
+    setSelectedName(null);
     showToast(`Kliknuto: ${node.label}`, "info");
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+      const url = `${baseUrl}/api/faculties/name/?abbreviation=${encodeURIComponent(node.id)}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.name) {
+          setSelectedName(data.name);
+        }
+      }
+    } catch (_e) {
+      // Ignore error; keep abbreviation as label
+    }
   };
 
   return (
@@ -71,11 +186,23 @@ const NetworkGraph = memo(function NetworkGraph() {
         <CardSpotlight className="rounded-2xl">
           <div className="w-full h-[600px] bg-white/70 dark:bg-gray-900/70 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 relative overflow-hidden">
             {shouldRender ? (
+              loading ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-gray-400 dark:text-gray-600">Učitavanje grafa...</div>
+                </div>
+              ) : error ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-red-500 dark:text-red-400">{error}</div>
+                </div>
+              ) : nodes.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-gray-500 dark:text-gray-400">Nema podataka za prikaz</div>
+                </div>
+              ) : (
               <GraphCanvas
-                nodes={graphNodes}
-                edges={graphEdges}
+                nodes={nodes}
+                edges={edges}
                 layoutType="forceDirected2d"
-                clusterAttribute="cluster"
                 nodeLabelFontSize={14}
                 nodeLabelFontWeight={600}
                 edgeColor={isDark ? "#64748b" : "#94a3b8"}
@@ -110,34 +237,12 @@ const NetworkGraph = memo(function NetworkGraph() {
                     : undefined
                 }
               />
+              )
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-gray-400 dark:text-gray-600">Učitavanje grafa...</div>
               </div>
             )}
-            {/* Legend */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="absolute top-4 left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg p-4 border border-gray-200/50 dark:border-gray-700/50 z-10"
-            >
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Legenda</h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-blue-600 shadow-sm"></div>
-                  <span className="text-gray-700 dark:text-gray-300">Fakultet</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-green-500 shadow-sm"></div>
-                  <span className="text-gray-700 dark:text-gray-300">Udruga</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-amber-500 shadow-sm"></div>
-                  <span className="text-gray-700 dark:text-gray-300">Tvrtka</span>
-                </div>
-              </div>
-            </motion.div>
             {selectedNode && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -146,7 +251,7 @@ const NetworkGraph = memo(function NetworkGraph() {
                 className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg p-4 border border-gray-200/50 dark:border-gray-700/50 z-10"
               >
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  {selectedNode.label}
+                  {selectedName || selectedNode.label}
                 </p>
               </motion.div>
             )}
