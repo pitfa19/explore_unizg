@@ -1,0 +1,106 @@
+[
+  {
+    "identifier": "AEGEE",
+    "cluster": 2
+  },
+  {
+    "identifier": "AIESEC",
+    "cluster": 2
+  },
+  {
+    "identifier": "BEST",
+    "cluster": 4
+  },
+  {
+    "identifier": "Capella Juris",
+    "cluster": 3
+  },
+  {
+    "identifier": "CPSA",
+    "cluster": 1
+  },
+  {
+    "identifier": "CroMSIC",
+    "cluster": 1
+  },
+  {
+    "identifier": "DK EFZG",
+    "cluster": 0
+  },
+  {
+    "identifier": "DSSR",
+    "cluster": 5
+  },
+  {
+    "identifier": "EESTEC",
+    "cluster": 4
+  },
+  {
+    "identifier": "Ekonomska klinika",
+    "cluster": 0
+  },
+  {
+    "identifier": "EMSA",
+    "cluster": 6
+  },
+  {
+    "identifier": "ESN",
+    "cluster": 2
+  },
+  {
+    "identifier": "eSTUDENT",
+    "cluster": 4
+  },
+  {
+    "identifier": "Financijski klub",
+    "cluster": 0
+  },
+  {
+    "identifier": "FSB Racing Team",
+    "cluster": 3
+  },
+  {
+    "identifier": "HAZ",
+    "cluster": 1
+  },
+  {
+    "identifier": "HSA",
+    "cluster": 1
+  },
+  {
+    "identifier": "IAAS",
+    "cluster": 6
+  },
+  {
+    "identifier": "IAESTE",
+    "cluster": 2
+  },
+  {
+    "identifier": "ICM",
+    "cluster": 1
+  },
+  {
+    "identifier": "KSP Feniks",
+    "cluster": 3
+  },
+  {
+    "identifier": "PublikaR",
+    "cluster": 5
+  },
+  {
+    "identifier": "StEPP",
+    "cluster": 1
+  },
+  {
+    "identifier": "Udruga podravskih studenata",
+    "cluster": 5
+  },
+  {
+    "identifier": "Udruga Pravnik",
+    "cluster": 3
+  },
+  {
+    "identifier": "USF",
+    "cluster": 3
+  }
+]

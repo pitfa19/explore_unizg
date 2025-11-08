@@ -9,6 +9,9 @@ import { motion } from "motion/react";
 const NetworkGraph = memo(function NetworkGraph() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedName, setSelectedName] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);
+  const [neighborIds, setNeighborIds] = useState(new Set());
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,44 +76,8 @@ const NetworkGraph = memo(function NetworkGraph() {
           throw new Error(`Request failed: ${res.status}`);
         }
         const data = await res.json();
-        const faculties = Array.isArray(data?.faculties) ? data.faculties : [];
-
-        // Map abbreviation -> cluster (can be null/undefined)
-        const abbrToCluster = new Map();
-        for (const f of faculties) {
-          if (f?.abbreviation) {
-            abbrToCluster.set(f.abbreviation, f?.cluster ?? null);
-          }
-        }
-
-        // Build undirected edges, de-duplicated (keep smallest distance)
-        const edgeMap = new Map();
-        const degree = new Map();
-
-        for (const f of faculties) {
-          const a = f?.abbreviation;
-          if (!a) continue;
-          const knn = Array.isArray(f?.knn_edges) ? f.knn_edges : [];
-          for (const e of knn) {
-            const b = e?.neighbor_abbreviation;
-            if (!b) continue;
-            const [s, t] = a < b ? [a, b] : [b, a];
-            const key = `${s}-${t}`;
-            const dist = typeof e?.distance === "number" ? e.distance : Number.POSITIVE_INFINITY;
-            const existing = edgeMap.get(key);
-            if (!existing || existing.data.distance > dist) {
-              edgeMap.set(key, { id: key, source: s, target: t, data: { distance: dist } });
-            }
-            degree.set(a, (degree.get(a) || 0) + 1);
-            degree.set(b, (degree.get(b) || 0) + 1);
-          }
-        }
-
-        const abbreviations = new Set(faculties.map((f) => f.abbreviation).filter(Boolean));
-        for (const { source, target } of edgeMap.values()) {
-          abbreviations.add(source);
-          abbreviations.add(target);
-        }
+        const nodesFromApi = Array.isArray(data?.nodes) ? data.nodes : [];
+        const edgesFromApi = Array.isArray(data?.edges) ? data.edges : [];
 
         // Cluster-based coloring
         const lightPalette = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#e879f9", "#22c55e", "#f97316", "#06b6d4"];
@@ -121,16 +88,45 @@ const NetworkGraph = memo(function NetworkGraph() {
           const idx = Math.abs(Number(clusterValue)) % palette.length;
           return palette[idx];
         };
-        const builtNodes = [...abbreviations].map((id) => {
-          const clusterValue = abbrToCluster.get(id) ?? null;
+        // Compute degree from edges for sizing
+        const degree = new Map();
+        for (const e of edgesFromApi) {
+          const s = e?.from;
+          const t = e?.to;
+          if (!s || !t) continue;
+          degree.set(s, (degree.get(s) || 0) + 1);
+          degree.set(t, (degree.get(t) || 0) + 1);
+        }
+        const builtNodes = nodesFromApi.map((n) => {
+          const id = n?.id;
+          const label = n?.label || id || "";
+          const type = n?.type || "node";
+          const clusterValue = n?.cluster ?? null;
+          // Base size by type; faculties larger than organisations
+          const base = type === "faculty" ? 18 : 12;
+          const size = base + 2 * (degree.get(id) || 0);
           return {
             id,
-            label: id,
-            size: 16 + 2 * (degree.get(id) || 0),
-            data: { cluster: clusterValue, type: "fakultet" },
+            label,
+            size,
+            data: { cluster: clusterValue, type },
             fill: colorForCluster(clusterValue),
           };
         });
+        // De-duplicate edges (undirected) and adapt shape for reagraph
+        const edgeMap = new Map();
+        for (const e of edgesFromApi) {
+          const a = e?.from;
+          const b = e?.to;
+          if (!a || !b) continue;
+          const [s, t] = a < b ? [a, b] : [b, a];
+          const key = `${s}-${t}`;
+          const dist = typeof e?.distance === "number" ? e.distance : Number.POSITIVE_INFINITY;
+          const existing = edgeMap.get(key);
+          if (!existing || existing.data.distance > dist) {
+            edgeMap.set(key, { id: key, source: s, target: t, data: { distance: dist } });
+          }
+        }
         const builtEdges = [...edgeMap.values()];
 
         if (!cancelled) {
@@ -153,24 +149,94 @@ const NetworkGraph = memo(function NetworkGraph() {
   }, [shouldRender, isDark]);
 
   const handleNodeClick = async (node) => {
+    // Toggle selection when clicking the same node
+    if (selectedId && node?.id === selectedId) {
+      setSelectedNode(null);
+      setSelectedName(null);
+      setSelectedId(null);
+      setSelectedType(null);
+      setNeighborIds(new Set());
+      return;
+    }
+
     setSelectedNode(node);
-    setSelectedName(null);
+    setSelectedId(node?.id || null);
+    const type = node?.data?.type || "node";
+    setSelectedType(type);
+    setSelectedName(node?.label || null);
     showToast(`Kliknuto: ${node.label}`, "info");
 
+    // Determine neighbors: for faculty fetch from backend, for others derive locally
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
-      const url = `${baseUrl}/api/faculties/name/?abbreviation=${encodeURIComponent(node.id)}`;
+      if (type === "faculty") {
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+        // Send full name (label/id) to backend
+        const nameParam = node?.label || node?.id;
+        const url = `${baseUrl}/api/faculties/get/?name=${encodeURIComponent(nameParam)}`;
       const res = await fetch(url, { headers: { Accept: "application/json" } });
       if (res.ok) {
         const data = await res.json();
+          const edges = Array.isArray(data?.edges) ? data.edges : [];
+          const neigh = new Set(edges.map((e) => e?.to).filter(Boolean));
+          neigh.add(node.id);
+          setNeighborIds(neigh);
         if (data?.name) {
           setSelectedName(data.name);
         }
+        } else {
+          // fallback local
+          const neigh = new Set();
+          for (const e of edges) {
+            if (e.source === node.id) neigh.add(e.target);
+            else if (e.target === node.id) neigh.add(e.source);
+          }
+          neigh.add(node.id);
+          setNeighborIds(neigh);
+        }
+      } else {
+        // organisation or other: derive locally
+        const neigh = new Set();
+        for (const e of edges) {
+          if (e.source === node.id) neigh.add(e.target);
+          else if (e.target === node.id) neigh.add(e.source);
+        }
+        neigh.add(node.id);
+        setNeighborIds(neigh);
       }
     } catch (_e) {
-      // Ignore error; keep abbreviation as label
+      // Fallback to local neighbor derivation
+      const neigh = new Set();
+      for (const e of edges) {
+        if (e.source === node.id) neigh.add(e.target);
+        else if (e.target === node.id) neigh.add(e.source);
+      }
+      neigh.add(node.id);
+      setNeighborIds(neigh);
     }
   };
+
+  // Build highlighted render nodes/edges based on selection
+  const renderNodes = nodes.map((n) => {
+    if (!selectedId) return n;
+    const isSelected = n.id === selectedId;
+    const isNeighbor = neighborIds.has(n.id);
+    const sizeBoost = isSelected ? 8 : isNeighbor ? 4 : -4;
+    const newSize = Math.max(6, (n.size || 12) + sizeBoost);
+    return { ...n, size: newSize };
+  });
+  const renderEdges = edges.map((e) => {
+    if (!selectedId) return e;
+    const isOut = e.source === selectedId;
+    const isIn = e.target === selectedId;
+    const isConnected = isOut || isIn;
+    const size = isConnected ? 3 : 1;
+    // Distinct colors for outgoing vs incoming; dim others
+    const outgoingColor = isDark ? "#22c55e" : "#16a34a"; // green
+    const incomingColor = isDark ? "#f59e0b" : "#d97706"; // amber
+    const dimColor = isDark ? "#374151" : "#cbd5e1";
+    const color = isOut ? outgoingColor : isIn ? incomingColor : dimColor;
+    return { ...e, size, color };
+  });
 
   return (
     <section ref={sectionRef} className="w-full py-20 md:py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative">
@@ -200,9 +266,15 @@ const NetworkGraph = memo(function NetworkGraph() {
                 </div>
               ) : (
               <GraphCanvas
-                nodes={nodes}
-                edges={edges}
+                nodes={renderNodes}
+                edges={renderEdges}
                 layoutType="forceDirected2d"
+                layoutProps={{
+                  // Pull nodes further apart: larger link distance and stronger repulsion
+                  linkDistance: 140,
+                  nodeStrength: -500,
+                  collideRadius: 18,
+                }}
                 nodeLabelFontSize={14}
                 nodeLabelFontWeight={600}
                 edgeColor={isDark ? "#64748b" : "#94a3b8"}

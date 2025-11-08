@@ -1,0 +1,574 @@
+[
+  {
+    "identifier": "AEGEE",
+    "knn_edges": [
+      {
+        "neighbor_label": "IAESTE Croatia (Zagreb)",
+        "distance": 0.062985106428149
+      },
+      {
+        "neighbor_label": "AIESEC Croatia (Zagreb)",
+        "distance": 0.07513891538313457
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.49300479421626053
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": -0.3476304984976636,
+      "y": 0.005074162513938957
+    }
+  },
+  {
+    "identifier": "AIESEC",
+    "knn_edges": [
+      {
+        "neighbor_label": "IAESTE Croatia (Zagreb)",
+        "distance": 0.06641146082917443
+      },
+      {
+        "neighbor_label": "AEGEE Zagreb",
+        "distance": 0.07513891538313457
+      },
+      {
+        "neighbor_label": "Agronomski fakultet",
+        "distance": 0.4987579249706956
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": -0.35357184791339896,
+      "y": -0.06982948874602299
+    }
+  },
+  {
+    "identifier": "BEST",
+    "knn_edges": [
+      {
+        "neighbor_label": "EESTEC LC Zagreb",
+        "distance": 0.09610332109881017
+      },
+      {
+        "neighbor_label": "ESN Zagreb",
+        "distance": 0.14595347363833688
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.4468243872051434
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": -0.23833363206987065,
+      "y": 0.1973380582804038
+    }
+  },
+  {
+    "identifier": "Capella Juris",
+    "knn_edges": [
+      {
+        "neighbor_label": "Udruženje studenata filozofije (USF)",
+        "distance": 0.1148074945363489
+      },
+      {
+        "neighbor_label": "PublikaR",
+        "distance": 0.18978677133837782
+      },
+      {
+        "neighbor_label": "Pravni fakultet",
+        "distance": 0.5703289570984659
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.4582077885440967,
+      "y": 0.04812320013670459
+    }
+  },
+  {
+    "identifier": "CPSA",
+    "knn_edges": [
+      {
+        "neighbor_label": "CroMSIC – Croatian Medical Students’ International Committee",
+        "distance": 0.07861311940818645
+      },
+      {
+        "neighbor_label": "Hrvatska studentska asocijacija (HSA)",
+        "distance": 0.09146770740532668
+      },
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.4769255117917828
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.026064145220770333,
+      "y": -0.35482489791218647
+    }
+  },
+  {
+    "identifier": "CroMSIC",
+    "knn_edges": [
+      {
+        "neighbor_label": "Hrvatska studentska asocijacija (HSA)",
+        "distance": 0.059227057346863295
+      },
+      {
+        "neighbor_label": "Croatian Pharmaceutical Students’ Association (CPSA)",
+        "distance": 0.07861311940818645
+      },
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.5026696947313285
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": -0.0356210011149785,
+      "y": -0.3060912825668929
+    }
+  },
+  {
+    "identifier": "DK EFZG",
+    "knn_edges": [
+      {
+        "neighbor_label": "Ekonomska klinika",
+        "distance": 0.077336588158154
+      },
+      {
+        "neighbor_label": "Financijski klub",
+        "distance": 0.139461837502404
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.29590025567315936
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": 0.011290784488520375,
+      "y": 0.3961211641038921
+    }
+  },
+  {
+    "identifier": "DSSR",
+    "knn_edges": [
+      {
+        "neighbor_label": "Udruga podravskih studenata",
+        "distance": 0.13145790040783964
+      },
+      {
+        "neighbor_label": "PublikaR",
+        "distance": 0.13673739082954398
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.537299673496847
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.2524520992168786,
+      "y": -0.18952914965746953
+    }
+  },
+  {
+    "identifier": "EESTEC",
+    "knn_edges": [
+      {
+        "neighbor_label": "BEST Zagreb",
+        "distance": 0.09610332109881017
+      },
+      {
+        "neighbor_label": "ESN Zagreb",
+        "distance": 0.21952021862227966
+      },
+      {
+        "neighbor_label": "Fakultet elektrotehnike i računarstva",
+        "distance": 0.3992412625951074
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": -0.3190021392618109,
+      "y": 0.24957253227646212
+    }
+  },
+  {
+    "identifier": "Ekonomska klinika",
+    "knn_edges": [
+      {
+        "neighbor_label": "Financijski klub",
+        "distance": 0.06713579710230448
+      },
+      {
+        "neighbor_label": "Debatni klub Ekonomskog fakulteta u Zagrebu (DK EFZG)",
+        "distance": 0.077336588158154
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.36557435625526824
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": 0.0444804389932696,
+      "y": 0.32626849986122125
+    }
+  },
+  {
+    "identifier": "EMSA",
+    "knn_edges": [
+      {
+        "neighbor_label": "IAAS Croatia",
+        "distance": 0.13577115316769423
+      },
+      {
+        "neighbor_label": "AIESEC Croatia (Zagreb)",
+        "distance": 0.14857855426422886
+      },
+      {
+        "neighbor_label": "Medicinski fakultet",
+        "distance": 0.38477110713546026
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": -0.21203611527092012,
+      "y": -0.11503151494624048
+    }
+  },
+  {
+    "identifier": "ESN",
+    "knn_edges": [
+      {
+        "neighbor_label": "AEGEE Zagreb",
+        "distance": 0.13332896714984377
+      },
+      {
+        "neighbor_label": "BEST Zagreb",
+        "distance": 0.14595347363833688
+      },
+      {
+        "neighbor_label": "Edukacijsko‑rehabilitacijski fakultet",
+        "distance": 0.44321451565423164
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": -0.22290847853517504,
+      "y": 0.052201980389592055
+    }
+  },
+  {
+    "identifier": "eSTUDENT",
+    "knn_edges": [
+      {
+        "neighbor_label": "BEST Zagreb",
+        "distance": 0.1671776300072927
+      },
+      {
+        "neighbor_label": "Ekonomska klinika",
+        "distance": 0.18017865354388557
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.41043148881068614
+      }
+    ],
+    "cluster": 4,
+    "pca": {
+      "x": -0.07140061337540761,
+      "y": 0.18829774609501382
+    }
+  },
+  {
+    "identifier": "Financijski klub",
+    "knn_edges": [
+      {
+        "neighbor_label": "Ekonomska klinika",
+        "distance": 0.06713579710230448
+      },
+      {
+        "neighbor_label": "Debatni klub Ekonomskog fakulteta u Zagrebu (DK EFZG)",
+        "distance": 0.139461837502404
+      },
+      {
+        "neighbor_label": "Ekonomski fakultet",
+        "distance": 0.38279012567725135
+      }
+    ],
+    "cluster": 0,
+    "pca": {
+      "x": 0.09998048567723632,
+      "y": 0.28849337483642074
+    }
+  },
+  {
+    "identifier": "FSB Racing Team",
+    "knn_edges": [
+      {
+        "neighbor_label": "Klub studenata psihologije Feniks",
+        "distance": 0.050830760931718094
+      },
+      {
+        "neighbor_label": "Udruga Pravnik",
+        "distance": 0.13490416887641082
+      },
+      {
+        "neighbor_label": "Fakultet strojarstva i brodogradnje",
+        "distance": 0.36206405941790276
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.22605928060354313,
+      "y": 0.13414779793444864
+    }
+  },
+  {
+    "identifier": "HAZ",
+    "knn_edges": [
+      {
+        "neighbor_label": "Istraživački centar mladih (Youth Research Center)",
+        "distance": 0.038226624528660665
+      },
+      {
+        "neighbor_label": "StEPP – Studentska udruga prve pomoći i hitne medicine",
+        "distance": 0.1185585011686712
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.4502773395666273
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": -0.03152336950739481,
+      "y": -0.12423882778965666
+    }
+  },
+  {
+    "identifier": "HSA",
+    "knn_edges": [
+      {
+        "neighbor_label": "CroMSIC – Croatian Medical Students’ International Committee",
+        "distance": 0.059227057346863295
+      },
+      {
+        "neighbor_label": "Croatian Pharmaceutical Students’ Association (CPSA)",
+        "distance": 0.09146770740532668
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.41231493740389125
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": 0.007318575605032916,
+      "y": -0.2652986720464213
+    }
+  },
+  {
+    "identifier": "IAAS",
+    "knn_edges": [
+      {
+        "neighbor_label": "EMSA Zagreb",
+        "distance": 0.13577115316769423
+      },
+      {
+        "neighbor_label": "CroMSIC – Croatian Medical Students’ International Committee",
+        "distance": 0.19784907951649336
+      },
+      {
+        "neighbor_label": "Agronomski fakultet",
+        "distance": 0.3924030639692231
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": -0.22539493268305377,
+      "y": -0.2501438683038619
+    }
+  },
+  {
+    "identifier": "IAESTE",
+    "knn_edges": [
+      {
+        "neighbor_label": "AEGEE Zagreb",
+        "distance": 0.062985106428149
+      },
+      {
+        "neighbor_label": "AIESEC Croatia (Zagreb)",
+        "distance": 0.06641146082917443
+      },
+      {
+        "neighbor_label": "Fakultet elektrotehnike i računarstva",
+        "distance": 0.4543525021747171
+      }
+    ],
+    "cluster": 2,
+    "pca": {
+      "x": -0.40282095974217264,
+      "y": -0.025276070094454685
+    }
+  },
+  {
+    "identifier": "ICM",
+    "knn_edges": [
+      {
+        "neighbor_label": "Hrvatska akademska zajednica (HAZ)",
+        "distance": 0.038226624528660665
+      },
+      {
+        "neighbor_label": "StEPP – Studentska udruga prve pomoći i hitne medicine",
+        "distance": 0.1227034105891838
+      },
+      {
+        "neighbor_label": "Kineziološki fakultet",
+        "distance": 0.47343878237417025
+      }
+    ],
+    "cluster": 1,
+    "pca": {
+      "x": -0.05363434259086305,
+      "y": -0.09305582453215523
+    }
+  },
+  {
+    "identifier": "KSP Feniks",
+    "knn_edges": [
+      {
+        "neighbor_label": "FSB Racing Team",
+        "distance": 0.050830760931718094
+      },
+      {
+        "neighbor_label": "Udruga Pravnik",
+        "distance": 0.1287638915489501
+      },
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.4226970966981205
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.1829373336866684,
+      "y": 0.10723564545651192
+    }
+  },
+  {
+    "identifier": "PublikaR",
+    "knn_edges": [
+      {
+        "neighbor_label": "Društvo studenata socijalnog rada",
+        "distance": 0.13673739082954398
+      },
+      {
+        "neighbor_label": "Udruga Pravnik",
+        "distance": 0.1660976542079011
+      },
+      {
+        "neighbor_label": "Fakultet političkih znanosti",
+        "distance": 0.5462780945463775
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.3702101318919856,
+      "y": -0.12002979864352195
+    }
+  },
+  {
+    "identifier": "StEPP",
+    "knn_edges": [
+      {
+        "neighbor_label": "Udruga podravskih studenata",
+        "distance": 0.11486640468271439
+      },
+      {
+        "neighbor_label": "Hrvatska akademska zajednica (HAZ)",
+        "distance": 0.1185585011686712
+      },
+      {
+        "neighbor_label": "Medicinski fakultet",
+        "distance": 0.5086908798264456
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.061574509540256485,
+      "y": -0.05082967906696201
+    }
+  },
+  {
+    "identifier": "Udruga podravskih studenata",
+    "knn_edges": [
+      {
+        "neighbor_label": "StEPP – Studentska udruga prve pomoći i hitne medicine",
+        "distance": 0.11486640468271439
+      },
+      {
+        "neighbor_label": "Udruga Pravnik",
+        "distance": 0.12593897000044793
+      },
+      {
+        "neighbor_label": "Fakultet hrvatskih studija",
+        "distance": 0.49777026839272653
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.17074686040673215,
+      "y": -0.08654646407093794
+    }
+  },
+  {
+    "identifier": "Udruga Pravnik",
+    "knn_edges": [
+      {
+        "neighbor_label": "Udruženje studenata filozofije (USF)",
+        "distance": 0.09889397868113649
+      },
+      {
+        "neighbor_label": "Udruga podravskih studenata",
+        "distance": 0.12593897000044793
+      },
+      {
+        "neighbor_label": "Pravni fakultet",
+        "distance": 0.3565078316061461
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.25897628715411064,
+      "y": 0.003321174267914051
+    }
+  },
+  {
+    "identifier": "USF",
+    "knn_edges": [
+      {
+        "neighbor_label": "Udruga Pravnik",
+        "distance": 0.09889397868113649
+      },
+      {
+        "neighbor_label": "Capella Juris",
+        "distance": 0.1148074945363489
+      },
+      {
+        "neighbor_label": "Fakultet filozofije i religijskih znanosti",
+        "distance": 0.3898739675949068
+      }
+    ],
+    "cluster": 3,
+    "pca": {
+      "x": 0.34357920953360804,
+      "y": 0.05453020222425995
+    }
+  }
+]
