@@ -21,6 +21,8 @@ const NetworkGraph = memo(function NetworkGraph() {
   const [shouldRender, setShouldRender] = useState(false);
   const sectionRef = useRef(null);
   const { showToast } = useToast();
+  const nodesRef = useRef([]);
+  const edgesRef = useRef([]);
 
   // Intersection Observer - render only when in viewport
   useEffect(() => {
@@ -105,11 +107,12 @@ const NetworkGraph = memo(function NetworkGraph() {
           // Base size by type; faculties larger than organisations
           const base = type === "faculty" ? 18 : 12;
           const size = base + 2 * (degree.get(id) || 0);
+          const originalData = n?.data || {};
           return {
             id,
             label,
             size,
-            data: { cluster: clusterValue, type },
+            data: { ...originalData, cluster: clusterValue, type },
             fill: colorForCluster(clusterValue),
           };
         });
@@ -132,6 +135,8 @@ const NetworkGraph = memo(function NetworkGraph() {
         if (!cancelled) {
           setNodes(builtNodes);
           setEdges(builtEdges);
+          nodesRef.current = builtNodes;
+          edgesRef.current = builtEdges;
           setLoading(false);
         }
       } catch (err) {
@@ -147,6 +152,85 @@ const NetworkGraph = memo(function NetworkGraph() {
       cancelled = true;
     };
   }, [shouldRender, isDark]);
+
+  // Keep refs in sync
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
+
+  // Listen for event to add a special "student" node and connect to KNNs
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const detail = e?.detail || {};
+        const studentId = detail.studentId ?? null;
+        const name = (detail.name || "").trim() || "Student";
+        const neighbors = Array.isArray(detail.neighbors) ? detail.neighbors : [];
+        const studentNodeId = studentId != null ? `_student_${studentId}` : `_student_${name.replace(/\s+/g, "_")}`;
+
+        const existingNodes = nodesRef.current || [];
+        const existingEdges = edgesRef.current || [];
+
+        // Build special styled node
+        const specialFill = isDark ? "#f472b6" : "#ec4899"; // pink
+        const specialStroke = isDark ? "#111827" : "#ffffff";
+        const newStudentNode = {
+          id: studentNodeId,
+          label: name,
+          size: 28,
+          data: { type: "student" },
+          fill: specialFill,
+          stroke: specialStroke,
+          strokeWidth: 2.5,
+        };
+
+        // Filter out any prior student node with same id and its edges
+        const filteredNodes = existingNodes.filter((n) => n.id !== studentNodeId);
+        const filteredEdges = existingEdges.filter((e) => e.source !== studentNodeId && e.target !== studentNodeId);
+
+        // Create edges to neighbors by matching neighbor.label to existing node ids
+        const idSet = new Set(filteredNodes.map((n) => n.id));
+        const addedEdges = [];
+        for (const n of neighbors) {
+          const targetId = (n?.label || n?.name || "").trim();
+          if (!targetId || !idSet.has(targetId)) continue;
+          const source = studentNodeId;
+          const target = targetId;
+          const key = source < target ? `${source}-${target}` : `${target}-${source}`;
+          // Avoid duplicates if somehow present
+          if (filteredEdges.some((e) => (e.id === key) || (e.source === source && e.target === target) || (e.source === target && e.target === source))) {
+            continue;
+          }
+          addedEdges.push({
+            id: key,
+            source,
+            target,
+            data: { distance: typeof n?.distance === "number" ? n.distance : 0.0, isStudentEdge: true },
+          });
+        }
+
+        const nextNodes = [...filteredNodes, newStudentNode];
+        const nextEdges = [...filteredEdges, ...addedEdges];
+
+        nodesRef.current = nextNodes;
+        edgesRef.current = nextEdges;
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        setSelectedNode(newStudentNode);
+        setSelectedId(studentNodeId);
+        setSelectedType("student");
+        const neighIds = new Set([studentNodeId, ...addedEdges.map((e) => e.target)]);
+        setNeighborIds(neighIds);
+      } catch (_err) {
+        // no-op
+      }
+    };
+    window.addEventListener("addStudentNode", handler);
+    return () => window.removeEventListener("addStudentNode", handler);
+  }, [isDark]);
 
   const handleNodeClick = async (node) => {
     // Toggle selection when clicking the same node
@@ -183,6 +267,14 @@ const NetworkGraph = memo(function NetworkGraph() {
         if (data?.name) {
           setSelectedName(data.name);
         }
+        // Broadcast selection so side lists can update independently
+        if (typeof window !== "undefined") {
+          try {
+            window.dispatchEvent(new CustomEvent("facultySelected", { detail: { name: data?.name || nameParam } }));
+          } catch (_err) {
+            // no-op
+          }
+        }
         } else {
           // fallback local
           const neigh = new Set();
@@ -202,6 +294,36 @@ const NetworkGraph = memo(function NetworkGraph() {
         }
         neigh.add(node.id);
         setNeighborIds(neigh);
+        // Broadcast organisation selection for side lists
+        if (type === "organisation" && typeof window !== "undefined") {
+          try {
+            // Build neighbour organisations list (exclude self)
+            const neighborOrgs = [];
+            for (const nid of neigh) {
+              if (nid === node.id) continue;
+              const nobj = nodes.find((n) => n.id === nid);
+              if (nobj?.data?.type === "organisation") {
+                neighborOrgs.push({
+                  id: nobj.id,
+                  name: nobj.label,
+                  abbreviation: nobj?.data?.abbreviation || "",
+                });
+              }
+            }
+            neighborOrgs.sort((a, b) => a.name.localeCompare(b.name, "hr"));
+            window.dispatchEvent(
+              new CustomEvent("organisationSelected", {
+                detail: {
+                  name: node?.label || node?.id,
+                  abbreviation: node?.data?.abbreviation || "",
+                  neighbors: neighborOrgs,
+                },
+              })
+            );
+          } catch (_err) {
+            // no-op
+          }
+        }
       }
     } catch (_e) {
       // Fallback to local neighbor derivation
