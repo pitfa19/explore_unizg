@@ -172,6 +172,7 @@ def embed_student_and_knn(request: HttpRequest):
             "label": label,
             "name": raw_name,
             "abbreviation": (f.abbreviation or "").strip(),
+            "url": (f.url or "").strip(),
             "distance": dist,
         })
     # Organisations
@@ -188,6 +189,7 @@ def embed_student_and_knn(request: HttpRequest):
             "label": (o.name or "").strip(),
             "name": (o.name or "").strip(),
             "abbreviation": (o.abbreviation or "").strip(),
+            "url": (o.url or "").strip(),
             "distance": dist,
         })
 

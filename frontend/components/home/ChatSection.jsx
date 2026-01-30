@@ -155,6 +155,7 @@ export default function ChatSection() {
                 abbreviation: (n?.abbreviation || "").trim(),
                 distance: typeof n?.distance === "number" ? n.distance : null,
                 cluster: n?.cluster ?? null,
+                url: (n?.url || "").trim(),
               }));
             const organisations = neighbors
               .filter((n) => (n?.type === "organisation"))
@@ -163,6 +164,7 @@ export default function ChatSection() {
                 abbreviation: (n?.abbreviation || "").trim(),
                 distance: typeof n?.distance === "number" ? n.distance : null,
                 cluster: n?.cluster ?? null,
+                url: (n?.url || "").trim(),
               }));
             window.dispatchEvent(new CustomEvent("studentNeighbors", { detail: { name, faculties, organisations } }));
           } catch {
@@ -486,41 +488,7 @@ export default function ChatSection() {
                 </div>
               </div>
 
-              {/* Expand/Collapse Button - below input area */}
-              {messages.length > 0 && (
-                <div className="flex justify-center px-4 pb-4 pt-2">
-                  <button
-                    onClick={() => {
-                      setIsExpanded(!isExpanded);
-                      if (!isExpanded && inputAreaRef.current) {
-                        setTimeout(() => {
-                          inputAreaRef.current?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "end",
-                            inline: "nearest",
-                          });
-                        }, 100);
-                      }
-                    }}
-                    className="px-4 py-2 bg-white dark:bg-gray-800 backdrop-blur-md text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium group"
-                    aria-label={isExpanded ? "Sakrij poruke" : "Prikaži poruke"}
-                  >
-                    <motion.svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      animate={{ rotate: isExpanded ? 0 : 180 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </motion.svg>
-                    <span className="text-sm font-semibold">
-                      {isExpanded ? "Sakrij" : "Prikaži"}
-                    </span>
-                  </button>
-                </div>
-              )}
+              {/* Expand/Collapse Button removed */}
             </motion.div>
           </div>
         </CardSpotlight>
