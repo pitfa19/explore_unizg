@@ -71,4 +71,36 @@ export async function embedStudentAndKnn({ studentId, name }) {
 	};
 }
 
+export async function getFacultyDetails(name) {
+	const base = getBaseUrl();
+	const url = `${base}/api/faculties/get/?name=${encodeURIComponent(name)}`;
+	const resp = await fetch(url, { headers: { Accept: "application/json" } });
+	const isJson = resp.headers.get("content-type")?.includes("application/json");
+	const data = isJson ? await resp.json() : null;
+	if (!resp.ok) {
+		const message = data?.error || `Request failed with status ${resp.status}`;
+		const error = new Error(message);
+		error.status = resp.status;
+		error.payload = data;
+		throw error;
+	}
+	return data;
+}
+
+export async function getOrganisationDetails(name) {
+	const base = getBaseUrl();
+	const url = `${base}/api/organisations/get/?name=${encodeURIComponent(name)}`;
+	const resp = await fetch(url, { headers: { Accept: "application/json" } });
+	const isJson = resp.headers.get("content-type")?.includes("application/json");
+	const data = isJson ? await resp.json() : null;
+	if (!resp.ok) {
+	 const message = data?.error || `Request failed with status ${resp.status}`;
+	 const error = new Error(message);
+	 error.status = resp.status;
+	 error.payload = data;
+	 throw error;
+	}
+	return data;
+}
+
 
