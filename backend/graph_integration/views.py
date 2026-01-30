@@ -6,6 +6,7 @@ import re
 
 from .models import Faculty, Organisation
 from openai_integration.models import Student
+from django.utils.html import strip_tags
 
 
 def _add_cors_headers(request: HttpRequest, response: JsonResponse) -> JsonResponse:
@@ -96,7 +97,7 @@ def list_faculty_edges(request: HttpRequest):
             "label": fac_abbr_to_label.get(abbr, abbr),
             "type": "faculty",
             "cluster": f.cluster,
-            "data": {"abbreviation": abbr},
+            "data": {"abbreviation": abbr, "url": (f.url or "").strip()},
         }
         for f in faculties
         for abbr in [(f.abbreviation or "").strip()]
@@ -132,7 +133,7 @@ def list_faculty_edges(request: HttpRequest):
             "label": (o.name or "").strip(),
             "type": "organisation",
             "cluster": o.cluster,
-            "data": {"abbreviation": (o.abbreviation or "").strip()},
+            "data": {"abbreviation": (o.abbreviation or "").strip(), "url": (o.url or "").strip()},
         }
         for o in orgs
         if _org_id(o)
@@ -242,6 +243,7 @@ def get_faculty(request: HttpRequest):
             "label": lbl,
             "abbreviation": (fac.abbreviation if fac else "") or "",
             "cluster": (fac.cluster if fac else None),
+            "url": ((fac.url or "").strip() if fac else ""),
         })
 
     # Related organisations: organisations that reference this faculty or any direct neighbor by label
@@ -269,6 +271,7 @@ def get_faculty(request: HttpRequest):
                 "abbreviation": (o.abbreviation or "").strip(),
                 "cluster": o.cluster,
                 "distance": min_dist if min_dist is not None else 0.0,
+                "url": (o.url or "").strip(),
             })
 
     return _add_cors_headers(
@@ -278,6 +281,15 @@ def get_faculty(request: HttpRequest):
                 "abbreviation": faculty.abbreviation,
                 "name": clean_name,
                 "cluster": faculty.cluster,
+                "url": (faculty.url or "").strip(),
+                # Basic descriptive fields
+                "domain_areas": (faculty.domain_areas or "").strip(),
+                "programs": (faculty.programs or "").strip(),
+                "research_topics": (faculty.research_topics or "").strip(),
+                "methods_and_tech": (faculty.methods_and_tech or "").strip(),
+                "affiliations_and_labs": (faculty.affiliations_and_labs or "").strip(),
+                "typical_outputs": (faculty.typical_outputs or "").strip(),
+                "keywords": (faculty.keywords or "").strip(),
                 # Backward compatible: keep "edges" as direct KNN edges
                 "edges": edges,
                 # New fields:
@@ -289,6 +301,43 @@ def get_faculty(request: HttpRequest):
         ),
     )
 
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def get_organisation(request: HttpRequest):
+    if request.method == "OPTIONS":
+        return _add_cors_headers(request, JsonResponse({}))
+
+    raw_name = (request.GET.get("name") or "").strip()
+    if not raw_name:
+        return _add_cors_headers(request, JsonResponse({"error": "Missing name"}, status=400))
+
+    try:
+        org = Organisation.objects.get(name=raw_name)
+    except Organisation.DoesNotExist:
+        return _add_cors_headers(request, JsonResponse({"error": "Organisation not found"}, status=404))
+
+    return _add_cors_headers(
+        request,
+        JsonResponse(
+            {
+                "name": (org.name or "").strip(),
+                "abbreviation": (org.abbreviation or "").strip(),
+                "url": (org.url or "").strip(),
+                "scope": (org.scope or "").strip(),
+                "mission": (org.mission or "").strip(),
+                "domains": list(org.domains or []),
+                "core_activities": list(org.core_activities or []),
+                "flagship_projects": list(org.flagship_projects or []),
+                "target_members": (org.target_members or "").strip(),
+                "affiliations": list(org.affiliations or []),
+                "partnerships": (org.partnerships or None),
+                "skills_outcomes": list(org.skills_outcomes or []),
+                "keywords": list(org.keywords or []),
+                "cluster": org.cluster,
+            }
+        ),
+    )
 
 @csrf_exempt
 @require_http_methods(["GET", "OPTIONS"])
