@@ -2,7 +2,13 @@
 .venv/
 db.sqlite3
 backend/.env
+backend/db.sqlite3
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 frontend/.env*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
