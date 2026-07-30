@@ -1,0 +1,9 @@
+# Python (kolegiji_dag reference CLI)
+__pycache__/
+*.pyc
+*.pyo
+
+# OS / editor cruft
+.DS_Store
+__pycache__/
+*.pyc
