@@ -10,8 +10,6 @@ Two tools for planning studies at the University of Zagreb.
 
 Stdlib Python and vanilla JS. No dependencies, no build step.
 
-![The app: prerequisite graph on top, course list and earliest schedule below](assets/app-overview.png)
-
 ## 1. The web app
 
 Run it:
@@ -27,16 +25,12 @@ course*. A course sits in the first semester that is both after all its prerequi
 season, since zimski courses are only taught in odd semesters and ljetni in even ones. Hover a card to
 light up everything upstream of it.
 
-![Prerequisite graph](assets/dag-graph.png)
-
 **Editing.** Click a course to set its name, semester, year, ECTS, whether it is obavezni or izborni,
 and its prerequisites as `položen` or `odslušan`. Everything recomputes as you type. Courses with no
 prerequisites can be dragged to a later semester of the same season if you want to push them back.
 
 **The schedule.** `NAJRANIJE` is the earliest semester a course can be taken, `PLAN` is where the
 official programme puts it, and a red arrow is the difference. The bars are ECTS load per semester.
-
-![Earliest schedule](assets/schedule.png)
 
 **Buttons.** `Izvezi` saves your list as JSON, `Uvezi` loads one, `Zalijepi JSON` accepts pasted JSON,
 `Vrati zadano` starts over. Your list is kept in the browser, so it survives a reload.
@@ -62,14 +56,93 @@ https://horizontal-mobility.vercel.app/api/mcp
 }
 ```
 
-Then ask in plain language. Things it can answer:
+Then just ask in plain language. You never name a tool yourself, Claude picks one, but it helps to
+know what is actually in there.
 
-- *What does Kvantna fizika at PMF cover, and what is the reading list?*
-- *Which UNIZG faculties teach molecular biology?* It searches all 37 constituents at once.
-- *Show me the Arhitektura i urbanizam programme semester by semester.*
-- *What do I need before Klasična elektrodinamika?*
+### The tools
 
-Search ignores diacritics, so `racunarstvo` finds `Računarstvo`.
+Six of them. Two things they all share:
+
+- **The faculty can be given as an id or as a name.** `36`, `FER`, `fakultet elektrotehnike` all work,
+  and so do the other abbreviations people actually use (PMF, FSB, FFZG, FKIT, Arhitektonski). Ask
+  `unizg_institutions` if you want the id.
+- **Everything accepts a year**, as the starting year: `2025` means 2025/2026. It goes back to
+  1976/77, and 2026/2027 is already published. Omit it and you get the current one.
+
+---
+
+#### `unizg_institutions` — which faculties exist
+
+The 37 UNIZG constituents with their ISVU ids, their city, and how many courses each one has. Filter
+by a fragment of the name if you only want some. This is the lookup table behind everything else, and
+usually Claude calls it without being asked.
+
+#### `unizg_courses` — find a course by name
+
+Searches course names at one faculty, or **across all 37 at once if you leave the faculty out**. That
+second mode takes about fifteen seconds and is the honest way to answer *where else is this taught*.
+
+Search ignores diacritics, so `racunarstvo` finds `Računarstvo`. What comes back is a list of names
+with their šifre, which is what the next tool needs. If more courses matched than fit in the answer,
+the result says how many there were in total and how they were spread across faculties, so you get
+told when you are looking at a slice rather than everything.
+
+> *Which UNIZG faculties teach molecular biology?*
+
+#### `unizg_course` — everything about one course
+
+The detail page for a single course, which is where most of the interesting material is:
+
+- **Opis predmeta**, the syllabus, and the learning outcomes where they exist (they are prose inside
+  the description, not a separate field).
+- **Literatura**, split into required and recommended.
+- **ECTS and opterećenje**, the hours per activity type. Hours per ECTS is computable from this, and
+  nobody else publishes it.
+- **Preduvjeti**, both for enrolling in the course and for sitting its exam, as `položen` or
+  `odslušan`.
+- **Every programme the course belongs to**, with its semester and whether it is obavezni or izborni
+  in each. One course can legitimately sit at different semesters in different programmes, so this
+  is a list and not a single value.
+
+> *What does Kvantna fizika at PMF cover, and what is the reading list?*
+
+#### `unizg_programmes` — what a faculty offers
+
+The programme and module tree for a faculty: prijediplomski, diplomski, doktorski and specialist
+programmes, their delivery modes, and the ids the last two tools need. Parent nodes in the tree often
+have no curriculum of their own, and the result marks which entries can actually be opened.
+
+> *What can you study at Arhitektonski?*
+
+#### `unizg_curriculum` — one programme, semester by semester
+
+A full nastavni program: the obavezni courses in each semester, plus each elective group with the
+minimum ECTS you have to take from it. This is the view that shows you the shape of a degree, and it
+should come out near 30 ECTS per semester.
+
+> *Show me the Arhitektura i urbanizam programme semester by semester.*
+
+#### `unizg_dag_json` — a programme as JSON for the web app
+
+Exports courses in the schema the scheduler imports, so you can paste them straight into the app.
+
+Two modes, and the difference matters. Give it a **`target`** course and you get that course plus
+everything that feeds into it, transitively, which is normally five to twenty courses and a graph you
+can read. Add `max_depth` to stop after a level or two. Leave `target` out and you get the entire
+programme, which for a five year degree is around a hundred courses and a graph too dense to be
+useful.
+
+Two things it has to clean up on the way out, and it tells you when it did:
+
+- **Duplicate course names.** A year-long course is often listed twice, once as a 0 ECTS placeholder
+  and once as the credit-bearing row. The app keys its graph by name and would refuse the import, so
+  those get merged, keeping the row with the credits and the union of their prerequisites.
+- **Prerequisites pointing outside the programme.** They are free text and routinely name a course
+  that has since been renamed or retired. Those edges get dropped, because one unresolvable name
+  makes the app reject the whole import. It is reported, since it means the graph is genuinely
+  missing something.
+
+> *Give me the prerequisite chain for Klasična elektrodinamika at PMF fizika as scheduler JSON.*
 
 ### Getting a programme into the web app
 
@@ -77,10 +150,8 @@ Ask for a course and what leads to it, for example *"give me the prerequisite ch
 elektrodinamika at PMF fizika as scheduler JSON"*. Claude returns a JSON block. Open the app, click
 **Zalijepi JSON**, paste it, confirm.
 
-![The Zalijepi JSON box](assets/paste-json.png)
-
-Ask for a whole programme and you get all of it, which for a five year programme is around 100 courses
-and a graph too dense to read. Asking for one course and its chain is usually what you actually want.
+Asking for one course and its chain is usually what you actually want. A whole programme imports fine,
+it is just unreadable.
 
 ## Where the data comes from
 
@@ -96,6 +167,13 @@ Per-faculty figures are in [`skills/unizg-courses/references/institutions.md`](s
 The tools answer questions about teaching, not about people. Teacher names appear on course pages
 because the faculties publish them there, but there is deliberately no way to search or rank by
 professor.
+
+### What it cannot tell you about horizontalna mobilnost
+
+Searching every faculty at once answers what exists elsewhere and what you would be signing up for.
+It does not answer whether you may enrol: quotas, deadlines, home-faculty approval and how the ECTS
+get recognised are not in ISVU at all. Those live on the faculties' own pages, so confirm them with
+both student offices.
 
 ## Also in here
 
@@ -116,5 +194,4 @@ appreciated: see [CITATION.cff](CITATION.cff), or GitHub's **Cite this repositor
 
 Two things the license does not cover. The **course data** belongs to the University of Zagreb and its
 faculties; this repository only queries what they already publish and ships no dataset of it. And the
-**archived app** at tag `v0-faculty-graph-app` has other authors, so licensing that would need their
-agreement.
+**archived app** at tag `v0-faculty-graph-app` is our hackathon solution (we didn't win...)
