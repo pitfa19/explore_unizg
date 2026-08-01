@@ -1,3 +1,5 @@
+![Explore UNIZG — MCP tool: the University of Zagreb, one tool call away](docs/title.png)
+
 # explore_unizg
 
 Two tools for planning studies at the University of Zagreb.
