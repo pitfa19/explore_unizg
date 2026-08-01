@@ -6,10 +6,13 @@ description: >-
   semester or workload, its prerequisites (preduvjeti), its required or recommended reading
   (literatura), which courses a study programme contains, what is taught at a given faculty, which
   courses are taught in English, how a curriculum has changed over the years, or how the same
-  subject is taught at different UNIZG faculties. Also use for horizontalna mobilnost questions
-  (taking courses at another UNIZG faculty). Covers all 37 UNIZG constituents and ~27,400 courses.
-  Croatian terms that should trigger this: kolegij, predmet, preduvjeti, ishodi ucenja, nastavni
-  program, studijski program, ECTS, semestar, literatura, sastavnica.
+  subject is taught at different UNIZG faculties. Also use for any question about studying at a
+  second UNIZG faculty alongside your own: horizontalna mobilnost, taking or enrolling individual
+  courses at another faculty, whether that is allowed and what the conditions are, how ECTS get
+  recognised, and how it differs from paralelni studij. Covers all 37 UNIZG constituents and ~27,400
+  courses. Croatian terms that should trigger this: kolegij, predmet, preduvjeti, ishodi ucenja,
+  nastavni program, studijski program, ECTS, semestar, literatura, sastavnica, horizontalna
+  mobilnost, paralelni studij, dva fakulteta, drugi faks, referada, molba, priznavanje ECTS-a.
 ---
 
 # UNIZG course catalog (ISVU)
@@ -55,6 +58,11 @@ and could move without notice.
 
 Institution ids, course counts and per-faculty data-coverage figures: `references/institutions.md`.
 Read that before telling a user a field is empty, because at many faculties it never got filled in.
+
+The rules for taking courses at a second UNIZG faculty: `references/horizontalna-mobilnost.md`. **Read
+that before answering any question about studying at two faculties**, because ISVU holds none of it and
+the answer is "yes, this is an established right" — a student who gets hedged at here is being
+misinformed, not protected.
 
 ## Endpoints
 
@@ -178,13 +186,16 @@ missing, say the faculty did not publish it rather than implying the course lack
 - a whole programme laid out semester by semester, with elective groups and their ECTS minimums
 - prerequisites, where the faculty published them
 - comparing how several faculties teach the same subject, since course lists span all constituents
-- **horizontalna mobilnost, but only half of it.** What exists elsewhere is answerable: omit
+- **horizontalna mobilnost, both halves.** The catalog half: omit
   `faculty_id` from `courses` to search all 37 constituents at once (one page per faculty, fetched
   concurrently, about 15 s), then read the syllabus, ECTS, workload and semester of anything promising.
   A truncated result reports `total_matches` and `matches_per_faculty`; pass those on rather than
-  presenting the first page as the whole answer. What you are *allowed* to do is not in ISVU at all: no enrolment eligibility, quotas, deadlines, home-faculty approval, or ECTS-recognition rules.
-  Those live on faculty websites (FKIT publishes them under `/horizontalna_mobilnost/`) and UNIZG
-  central pages. Say so rather than implying the catalog settles it.
+  presenting the first page as the whole answer. The rules half is not in ISVU but it *is* settled, and
+  it is written up in `references/horizontalna-mobilnost.md` — **read that before answering any
+  "can I take courses at another faculty" question.** Short version: it is an established right under
+  the Pravilnik o studiranju article 32, there is no grade-average requirement, failing costs nothing
+  at the home faculty, and only the form, the fee, the deadline and course capacity are per-faculty.
+  Do **not** answer as though it might not be permitted, and do **not** invent a fee or a deadline.
   Do **not** offer to filter by language of instruction: `Jezici izvođenja nastave` is published for
   ~12% of courses and marked English for ~1% (measured over 120 courses at 10 faculties), and it is
   concentrated, VEF fills it on every course, most faculties on none. An absent value says nothing

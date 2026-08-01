@@ -63,7 +63,7 @@ know what is actually in there.
 
 ### The tools
 
-Six of them. Two things they all share:
+Seven of them. Two things the six catalog ones share:
 
 - **The faculty can be given as an id or as a name.** `36`, `FER`, `fakultet elektrotehnike` all work,
   and so do the other abbreviations people actually use (PMF, FSB, FFZG, FKIT, Arhitektonski). Ask
@@ -146,6 +146,26 @@ Two things it has to clean up on the way out, and it tells you when it did:
 
 > *Give me the prerequisite chain for Klasična elektrodinamika at PMF fizika as scheduler JSON.*
 
+#### `unizg_mobility_rules` — the rules for studying at a second faculty
+
+The only tool here that touches no network: it returns the rules for **horizontalna mobilnost**, taking
+individual courses at another UNIZG faculty while staying enrolled on your own programme, and how that
+differs from `paralelni studij`.
+
+It exists because the catalog cannot answer the question students actually ask. ISVU tells you what is
+taught where; it says nothing about whether you are allowed to go there. Left to guess, models guessed
+badly in both directions — smaller ones refused the question outright, larger ones affirmed it and then
+invented the fee, the deadline and the recognition rule. So the rules are written down, with their
+sources: the *Pravilnik o studiranju* article 32 and the University's *Smjernice za horizontalnu
+mobilnost* of 19 November 2024.
+
+The short version, which is the part worth knowing: **it is an established right, not a favour.** The
+level has to match, the course must not be taught on your own programme, and that is nearly all of it.
+There is no grade-average requirement. Failing a course you took this way costs you nothing at home. What
+genuinely varies per faculty is only the form, the fee, the deadline and whether the course has room.
+
+> *Can I take molecular biology courses at PMF while I study at FER?*
+
 ### Getting a programme into the web app
 
 Ask for a course and what leads to it, for example *"give me the prerequisite chain for Klasična
@@ -170,12 +190,18 @@ The tools answer questions about teaching, not about people. Teacher names appea
 because the faculties publish them there, but there is deliberately no way to search or rank by
 professor.
 
-### What it cannot tell you about horizontalna mobilnost
+### Horizontalna mobilnost, and which half comes from where
 
 Searching every faculty at once answers what exists elsewhere and what you would be signing up for.
-It does not answer whether you may enrol: quotas, deadlines, home-faculty approval and how the ECTS
-get recognised are not in ISVU at all. Those live on the faculties' own pages, so confirm them with
-both student offices.
+The rules are not in ISVU at all — they come from `unizg_mobility_rules`, which carries the
+university-wide position and its sources, written up at
+[`skills/unizg-courses/references/horizontalna-mobilnost.md`](skills/unizg-courses/references/horizontalna-mobilnost.md).
+
+What is left for the student to ask their referada is narrow and worth stating precisely: the form, the
+fee, the deadline, and whether the course has room. Not whether cross-faculty study is permitted, and
+not what average they need. Most faculties publish none of this online — the University's own 2024 audit
+of every constituent's website says so — but a missing page is a fact about that website, not about the
+student's rights.
 
 ## Also in here
 
