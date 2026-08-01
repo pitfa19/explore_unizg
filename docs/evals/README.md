@@ -35,6 +35,35 @@ link that the old instructions carried, and that URL 404s — a real bug in the 
 because a model repeated it to a student. Links in instruction text now get checked, and the reference
 file records when.
 
+## The small-model result, and where it stops
+
+Haiku is where the change pays off most: 2/6 to 6/6, nothing invented, and it called the new tool more
+eagerly than either larger model. Three things did that work, and they are worth preserving:
+
+- the rules are **retrievable in one call**, rather than needing synthesis across faculty websites.
+  Small models do not do that synthesis, they decline;
+- the **tool description states the conclusion** (`Cross-faculty study IS permitted`), so a model that
+  never calls the tool still takes the frame from the tool list;
+- the decisive core is **duplicated inline in `INSTRUCTIONS`**, because models answer these questions
+  without calling anything.
+
+**Counting verdicts hides a separate problem.** Reading Haiku's Croatian, its four Croatian answers
+contained `okončana prava` ("concluded rights") for an established right, the Serbian `zavisi` for
+`ovisi`, dropped diacritics, case errors, and the Cyrillic fragment `академ` inside
+`rizika za академски prosječni uspjeh`. Sonnet and Opus produced none of this. For an audience of
+Croatian students that is not cosmetic.
+
+Adding the Croatian glossary to `MOBILITY_RULES` fixed **exactly the three defects it names** and
+nothing else: Cyrillic gone, `zavisi` gone, `okončana` gone (`after2_haiku.md`). The residue is
+untouched — `studiras`, `polozis`, `trebas`, `pojavit ces` still lose their diacritics, plus `najprijed`,
+the Germanism `gebir` for a fee, `neke fakultete naplate`, and `ne utječe na tvoj dom`, a calque of
+"home faculty" that in Croatian says *house*.
+
+**That is a fluency limit, not an instructions problem, and more instruction text will not move it.** A
+glossary fixes named terminology; it cannot fix grammar and register across arbitrary vocabulary. So the
+standing recommendation is that Haiku is fine for the English answers and for getting the *facts* right,
+and Croatian student-facing traffic should go to Sonnet or Opus.
+
 ## Reproducing
 
 ```bash
