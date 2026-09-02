@@ -1,0 +1,81 @@
+# path chooser model (private tool)
+
+My hypothesis: at university you do not get where you want by having the best grades, you get there by working with the right people. So the tool should take a destination ("I want to go to ETH comp bio") and tell me which people to work with and which courses to take to get there. Notes from designing this. Companion to [[unizg-catalog-plan]] and [[mentor-finder]].
+
+## the honest problem first
+
+There are no training labels. To supervise "which path gets me into ETH comp bio" I would need examples of students who tried and what they did, and that data does not exist in ISVU or CroRIS or anywhere public. So framing this as "finetune a model on my UNIZG data" does not work as stated, there is nothing to fit against.
+
+## what fixes it: OpenAlex
+
+OpenAlex is the unlock, and it also kills the CROSBI blocker from [[mentor-finder]]. Free, no auth, CC0 licensed (so the legal picture is far better than scraping), just send `mailto=` to be polite. `api.openalex.org`.
+
+What it gives per author: ORCID, works count, citation count, normalised `topics` from a proper taxonomy, coauthorship, and crucially `affiliations` with the years attached. UNIZG is `I181343428` with 110,714 works, ETH Zurich is `I35440088` with 247,670.
+
+The affiliation histories are the weak labels I thought did not exist. Real people who were at UNIZG in year N and at ETH in year N+2 are recoverable, so I can mine actual trajectories instead of guessing. That turns an unsupervised problem into a weakly supervised one, which is the whole ballgame.
+
+Verified query shape: `authors?filter=affiliations.institution.id:I181343428,affiliations.institution.id:I35440088` returns 321 authors.
+
+## the trap in that query
+
+Those 321 are mostly garbage. The top hits are all particle physics and gamma-ray astronomy people (N. Godinović 2189 works, L. A. Antonelli 1775, F. Longo 1337). They are CMS and Fermi collaboration members, and a CMS paper has thousands of authors across hundreds of institutions, so "affiliated with both UNIZG and ETH" carries no information for them.
+
+Fixes, in order of how much they help: weight every coauthorship edge by inverse author count so a 3000-author paper contributes almost nothing, cap author `works_count`, filter by topic before touching institutions, and drop works above some author threshold entirely. Any graph built without this will be dominated by physics collaboration noise and quietly useless.
+
+## scale: it is general, and that makes ML viable
+
+FER to ETH was only my example. The tool should work for any UNIZG professor and any destination, and that changes the maths. For one narrow destination the honest answer is that maybe three people have a real link and I need a query rather than a model. For the general case the label count scales with the number of destinations, and the numbers are there:
+
+34,032 authors have a UNIZG affiliation in OpenAlex. Of a sample of 100 with 5 to 200 works, 98 had more than one institution in their affiliation history, and the non-Zagreb institutions include Max Planck, CNRS, Padua and Tokyo alongside the domestic ones (Ruđer Bošković, Osijek, Rijeka, Split). So there are tens of thousands of institutional transitions to learn from.
+
+Caveat on that 98%: OpenAlex affiliation parsing is noisy, and having an affiliation is not the same as having moved there. Hospital affiliations, short visits and parsing artefacts inflate it, and many transitions are domestic rather than international. The volume is still real.
+
+## what a GNN actually is, since I did not know
+
+Each node starts with a feature vector. In every layer a node collects its neighbours' vectors, aggregates them (sum, mean or attention-weighted), and updates its own. After two layers a node's vector encodes its two-hop neighbourhood, after three layers its three-hop. The learned part is how to weight and transform during that mixing. The point is that structure becomes a feature: two professors with identical CVs but different positions in the collaboration network get different embeddings, which no tabular model can give me.
+
+They are not a social-network tool, that is just the famous case. Real uses, least social first: molecules, where the molecule literally is a graph with atoms as nodes and bonds as edges, used in actual drug discovery; Google Maps ETA over road networks; physics simulation with particles as nodes; citation networks, which is the standard academic benchmark (Cora, PubMed, OGB-arxiv) and is exactly my problem's shape; fraud detection over transaction graphs; and recommendation (Pinterest PinSage), which is the social-ish one. The rule is that GNNs are for when the signal lives in the relationships rather than in the individual records.
+
+## so the GNN does fit, as link prediction
+
+The well-posed task: given the graph as it stood in year N, predict which authors acquire an affiliation at institution X by year N+3. Supervised, labels free from the affiliation histories, and enough positives at this scale.
+
+That also hands me a real evaluation, which I thought I did not have. Temporal holdout: build the graph from pre-2020 data only, predict the 2020 to 2023 moves, score against what actually happened. This is what separates the project from a recommender I can never check.
+
+Two things still hold. Use the GNN for scoring and extract paths for explanation, because the explanation is what makes output actionable rather than oracular, and it is my only way to hand-audit a recommendation. And the inverse-author-count edge weighting is not optional, without it the graph is collaboration mush whatever the architecture.
+
+## what I would actually build, staged
+
+Stage 0, the graph plus the temporal-holdout evaluation harness. Build this before any model. Once I can measure "did my system predict the real 2020 to 2023 moves", I can compare a dumb baseline (topic overlap plus coauthor distance) against a GNN and know whether the GNN earns its complexity. Without the harness I am guessing, and at 34k nodes I would never notice I was guessing. Expectation to check: a well-featured baseline probably gets most of the way and the GNN adds maybe 10 to 20% on ranking metrics, worth having but not worth starting with.
+
+Stage 1, semantic retrieval. Embed course descriptions and ishodi plus professor competencies, match my goal text against them. Must be a multilingual encoder, since almost all UNIZG course text is Croatian while my goal statement and the ETH side are English. OpenAlex `topics` give a normalised taxonomy to lean on so I am not trusting embeddings alone, and FER's `Kompetencije` keywords look like IEEE taxonomy terms which should map across reasonably.
+
+Stage 2, weighted pathfinding. Node types: student (me), course, person, institution, topic. Edge types: teaches, coauthors-with, was-affiliated-with, shares-topic, is-prerequisite-of. Weight coauthorship by recency and inverse author count, then run personalised PageRank or weighted shortest path from the target institution back toward UNIZG people, and from those people to the courses they teach. This answers the actual question directly, is debuggable, and every recommendation comes with its own explanation.
+
+Stage 3, the GNN link prediction head, scored against the Stage 0 harness so I can see what it adds over the baseline. Its real job is latent paths: people who look like they should have a link into a target but do not yet, which is genuinely something pathfinding cannot do. Trained on the mined affiliation transitions, evaluated on temporal holdout. Keep Stage 2 alive alongside it, since the GNN ranks and the path walk explains.
+
+## the hypothesis is actually testable
+
+Worth noting separately: my "connections beat grades" claim can be tested empirically with this data. Take UNIZG people who moved to strong institutions, then check whether their UNIZG supervisor already had a prior collaboration link to that institution. If supervisors' existing links predict where students land, the hypothesis holds. That is a real answerable question, it needs no student grade data, and it is arguably a small paper on academic mobility. It also sits right next to the horizontalna mobilnost material in the rector_award vault.
+
+## main risk
+
+This is a recommender where I never observe whether the advice worked, so the failure mode is confident nonsense I cannot detect. Every design choice above (explainable paths, normalised topics, hand-auditable output, temporal holdout before any model) exists to keep that from happening. Keep it private, keep it inspectable, do not dress up a lookup as intelligence.
+
+## the one number the whole training set rests on
+
+Open risk to settle before trusting any of this: in OpenAlex, "has an affiliation" is not "moved there". That 98% multi-affiliation rate includes hospital cross-appointments, short visits, coauthor institution bleed and plain parsing artefacts. Before mined trajectories can be labels I need a real definition of a transition, something like primary affiliation shifting for at least two consecutive years, and then a count of how many survive that filter. It could be far smaller than the raw numbers suggest, and it is the number the entire supervised framing depends on. Measure it first.
+
+## status: parked
+
+Paused here deliberately to go build the public skill ([[public-skill-scope]]) which has none of this uncertainty. When I come back, in order:
+
+1. Define a real affiliation transition and count how many survive the filter. This decides whether the supervised framing is viable at all.
+2. Build the graph plus the temporal-holdout harness (pre-2020 graph, predict 2020 to 2023 moves). No model until this can score something.
+3. Baseline: topic overlap plus coauthor distance, with inverse-author-count edge weighting. Score it.
+4. Only then the GNN link prediction head, and only keep it if it beats the baseline by enough to justify the complexity.
+5. Separately and cheaply: test the "connections beat grades" hypothesis directly, since that needs no model and might be a small paper on academic mobility.
+
+Data sources are all settled: OpenAlex for the global graph and trajectories, ISVU for courses and teaching portfolios, FER staff pages for competencies and publications, CroRIS Projekti API for funding with end dates. The blocked CROSBI API is no longer needed since OpenAlex supersedes it.
+
+Sources: [OpenAlex API](https://api.openalex.org) · [OpenAlex UNIZG](https://api.openalex.org/institutions/I181343428) · [OpenAlex ETH](https://api.openalex.org/institutions/I35440088)

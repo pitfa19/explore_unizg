@@ -1,0 +1,209 @@
+{
+  "schema_version": 2,
+  "scopes": [
+    {
+      "id": "explore-unizg",
+      "kind": "project",
+      "title": "Explore UNIZG",
+      "intent": "Maintain a read-only, provenance-pinned projection of the scheduler, public course tooling, and owner-authored direction.",
+      "history": [
+        {
+          "id": "projection-step-2",
+          "at": "2026-09-02T09:05:58Z",
+          "note": "Migration step 2 captured the existing repository and seven source notes without changing either source."
+        }
+      ],
+      "project": {
+        "manifest_path": "projects/explore-unizg/.mozak/project.yml",
+        "manifest_sha256": "27cf49f247ca6282ace7cfe0bc714dcd70db6d5b0fa19f15b8bb9424b5fc76e8",
+        "project_id": "explore-unizg",
+        "repository_revision": "1fe5d4c4b047e4c0f3a11801a77c36e67a478331",
+        "owned_paths": [
+          ".mozak"
+        ]
+      }
+    }
+  ],
+  "promotions": [],
+  "meta_goals": [
+    {
+      "id": "goal-preserve-evidence",
+      "title": "Preserve evidence and authority boundaries",
+      "authority": "advisory_only",
+      "scope_ids": [
+        "explore-unizg"
+      ],
+      "relationships": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "note-explore-unizg",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/631afc015a6340084167cb62518520ff252186b18f0e4d2a29dcd38215eea693",
+      "sha256": "631afc015a6340084167cb62518520ff252186b18f0e4d2a29dcd38215eea693",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/explore_unizg.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "631afc015a6340084167cb62518520ff252186b18f0e4d2a29dcd38215eea693"
+      },
+      "note_validation": {
+        "wikilinks": [
+          "horizontalna-mobilnost-tuning",
+          "mentor-finder",
+          "path-chooser-model",
+          "public-skill-scope",
+          "unizg-catalog-plan"
+        ],
+        "embeds": [],
+        "unresolved": [
+          "horizontalna-mobilnost-tuning",
+          "mentor-finder",
+          "path-chooser-model",
+          "public-skill-scope",
+          "unizg-catalog-plan"
+        ]
+      }
+    },
+    {
+      "id": "note-horizontalna-mobilnost-tuning",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/5bf69b247e45de4a78267a5715c3701dfdafd71f06da1a7083836054cbbbc36a",
+      "sha256": "5bf69b247e45de4a78267a5715c3701dfdafd71f06da1a7083836054cbbbc36a",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/horizontalna-mobilnost-tuning.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "5bf69b247e45de4a78267a5715c3701dfdafd71f06da1a7083836054cbbbc36a"
+      },
+      "note_validation": {
+        "wikilinks": [],
+        "embeds": [],
+        "unresolved": []
+      }
+    },
+    {
+      "id": "note-legal-basis",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/f9d932efef211bfd2383a738480dc0b9adffa241a53b325fdcec94eabfd49758",
+      "sha256": "f9d932efef211bfd2383a738480dc0b9adffa241a53b325fdcec94eabfd49758",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/legal-basis.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "f9d932efef211bfd2383a738480dc0b9adffa241a53b325fdcec94eabfd49758"
+      },
+      "note_validation": {
+        "wikilinks": [
+          "public-skill-scope"
+        ],
+        "embeds": [],
+        "unresolved": [
+          "public-skill-scope"
+        ]
+      }
+    },
+    {
+      "id": "note-mentor-finder",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/ed4a6f460f413b29ffcde192049c453eb6c1477969e86c11ec6f56ac0dad5d28",
+      "sha256": "ed4a6f460f413b29ffcde192049c453eb6c1477969e86c11ec6f56ac0dad5d28",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/mentor-finder.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "ed4a6f460f413b29ffcde192049c453eb6c1477969e86c11ec6f56ac0dad5d28"
+      },
+      "note_validation": {
+        "wikilinks": [
+          "unizg-catalog-plan"
+        ],
+        "embeds": [],
+        "unresolved": [
+          "unizg-catalog-plan"
+        ]
+      }
+    },
+    {
+      "id": "note-path-chooser-model",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/0e7e0a71cb357d2e94474488c3dc96b4f3542c7c2df48ea7b678d14627f5f313",
+      "sha256": "0e7e0a71cb357d2e94474488c3dc96b4f3542c7c2df48ea7b678d14627f5f313",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/path-chooser-model.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "0e7e0a71cb357d2e94474488c3dc96b4f3542c7c2df48ea7b678d14627f5f313"
+      },
+      "note_validation": {
+        "wikilinks": [
+          "mentor-finder",
+          "public-skill-scope",
+          "unizg-catalog-plan"
+        ],
+        "embeds": [],
+        "unresolved": [
+          "mentor-finder",
+          "public-skill-scope",
+          "unizg-catalog-plan"
+        ]
+      }
+    },
+    {
+      "id": "note-public-skill-scope",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/f833904a2560750cf61cbdd8a99f3e472dfc44211104d4469478f9a73280c45d",
+      "sha256": "f833904a2560750cf61cbdd8a99f3e472dfc44211104d4469478f9a73280c45d",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/public-skill-scope.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "f833904a2560750cf61cbdd8a99f3e472dfc44211104d4469478f9a73280c45d"
+      },
+      "note_validation": {
+        "wikilinks": [
+          "legal-basis",
+          "mentor-finder",
+          "path-chooser-model",
+          "unizg-catalog-plan"
+        ],
+        "embeds": [],
+        "unresolved": [
+          "legal-basis",
+          "mentor-finder",
+          "path-chooser-model",
+          "unizg-catalog-plan"
+        ]
+      }
+    },
+    {
+      "id": "note-unizg-catalog-plan",
+      "scope_id": "explore-unizg",
+      "kind": "note",
+      "path": "objects/sha256/2fb06e40105123637a28b28913847f83f5daf5ca9d015c99fdf5af82c45422c0",
+      "sha256": "2fb06e40105123637a28b28913847f83f5daf5ca9d015c99fdf5af82c45422c0",
+      "media_type": "text/markdown",
+      "source": {
+        "path": "creations/explore_unizg/unizg-catalog-plan.md",
+        "revision": "392662303f926206cfaf943ed97f84d7e61bcd7f",
+        "sha256": "2fb06e40105123637a28b28913847f83f5daf5ca9d015c99fdf5af82c45422c0"
+      },
+      "note_validation": {
+        "wikilinks": [
+          "public-skill-scope"
+        ],
+        "embeds": [],
+        "unresolved": [
+          "public-skill-scope"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+version: 1
+framework_contract_version: 1
+project:
+  id: explore-unizg
+  name: "Explore UNIZG"
+repository:
+  revision: 1fe5d4c4b047e4c0f3a11801a77c36e67a478331
+owned_paths:
+  - .mozak

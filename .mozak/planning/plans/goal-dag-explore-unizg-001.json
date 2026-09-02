@@ -1,0 +1,75 @@
+{
+  "contract_version": 1,
+  "id": "plan-explore-unizg-catalog-handoff",
+  "version": 1,
+  "input_set_id": "inputs-explore-unizg-001",
+  "goals": [
+    {
+      "id": "goal-verify-current-boundary",
+      "version": 1,
+      "title": "Verify and document the current scheduler, public tooling, and catalog boundary",
+      "status": "ready",
+      "priority": 1,
+      "input_ids": [
+        "input-current-products",
+        "input-catalog-direction",
+        "input-public-boundary"
+      ],
+      "recovery_attempts": 0
+    },
+    {
+      "id": "goal-define-catalog-slice",
+      "version": 1,
+      "title": "Select one bounded catalog milestone and define its evidence and acceptance criteria",
+      "status": "planned",
+      "priority": 2,
+      "input_ids": [
+        "input-catalog-direction",
+        "input-catalog-plan",
+        "input-public-boundary"
+      ],
+      "recovery_attempts": 0
+    },
+    {
+      "id": "goal-specify-handoff",
+      "version": 1,
+      "title": "Specify a versioned catalog-to-scheduler programme handoff",
+      "status": "planned",
+      "priority": 3,
+      "input_ids": [
+        "input-current-products",
+        "input-catalog-direction",
+        "input-catalog-plan"
+      ],
+      "recovery_attempts": 0
+    }
+  ],
+  "dependencies": [
+    {
+      "goal_id": "goal-define-catalog-slice",
+      "depends_on_goal_id": "goal-verify-current-boundary",
+      "provenance": {
+        "kind": "declared",
+        "input_ids": [
+          "input-current-products",
+          "input-catalog-direction"
+        ]
+      }
+    },
+    {
+      "goal_id": "goal-specify-handoff",
+      "depends_on_goal_id": "goal-define-catalog-slice",
+      "provenance": {
+        "kind": "declared",
+        "input_ids": [
+          "input-catalog-direction",
+          "input-catalog-plan"
+        ]
+      }
+    }
+  ],
+  "recovery": {
+    "max_attempts_per_goal": 3,
+    "allowed_failed_transition": "blocked"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "contract_version": 1,
+  "id": "inputs-explore-unizg-001",
+  "accepted_at": "2026-09-02T09:05:58Z",
+  "inputs": [
+    {
+      "id": "input-current-products",
+      "text": "The repository contains a browser prerequisite scheduler and public read-only UNIZG course tooling, while the owner notes distinguish the scheduler from the proposed university-wide catalog.",
+      "provenance": {
+        "kind": "codebase_observation",
+        "observation_id": "observation-current-products",
+        "repository_revision": "1fe5d4c4b047e4c0f3a11801a77c36e67a478331",
+        "paths": [
+          "index.html",
+          "js/schedule.js",
+          "api/_core.py",
+          "skills/unizg-courses/SKILL.md"
+        ]
+      }
+    },
+    {
+      "id": "input-catalog-direction",
+      "text": "Keep the university-wide searchable catalog separate from the programme-deep scheduler and define a bounded handoff from catalog results into scheduler programme data.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "source-note-explore-unizg-catalog-split",
+        "actor": "repository owner via explore_unizg.md at obsidian revision 392662303f926206cfaf943ed97f84d7e61bcd7f"
+      }
+    },
+    {
+      "id": "input-catalog-plan",
+      "text": "Use the catalog plan as planning evidence, not as proof that all catalog milestones or stated coverage claims are currently implemented or freshly verified.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "source-note-unizg-catalog-plan",
+        "actor": "repository owner via unizg-catalog-plan.md at obsidian revision 392662303f926206cfaf943ed97f84d7e61bcd7f"
+      }
+    },
+    {
+      "id": "input-public-boundary",
+      "text": "Keep public course navigation course-centric and exclude people as a queryable entity; private people-centric mentor and path-chooser work remains outside the public skill.",
+      "provenance": {
+        "kind": "human_decision",
+        "decision_id": "source-note-public-skill-scope",
+        "actor": "repository owner via public-skill-scope.md and path-chooser-model.md at obsidian revision 392662303f926206cfaf943ed97f84d7e61bcd7f"
+      }
+    }
+  ]
+}

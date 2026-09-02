@@ -1,0 +1,15 @@
+# explore_unizg
+
+What the project is right now: a single page app that takes the courses of one UNIZG study programme, models them as a prerequisite graph (DAG), and computes the earliest you could finish everything given each course's semester parity (zimski = odd, ljetni = even) and its preduvjeti. Vanilla HTML, CSS and JS, no framework and no build step, the graph is hand drawn SVG. Ships with a subset of PMF Molekularna biologija as the example data. Repo is at `~/Documents/explore_unizg`, deployed on Vercel from the `feature/kolegiji-raspored` branch (that one is the production branch, so pushing to it deploys).
+
+The data model is a flat list of courses: `naziv`, `semestar`, `godina`, `status` (obavezni/izborni), `ects`, and `preduvjeti` as a list of `{kolegij, uvjet}` where uvjet is `polozen` or `odslusan`. Courses are matched by name string, which is fine for ten courses and will break the moment there is more than one programme in there.
+
+Where we are going next: a catalog of every course at every UNIZG constituent, filterable by faculty, semester, ECTS, obavezni/izborni, professor and free text, so it is actually possible to find courses worth taking. Researched and verified, see [[unizg-catalog-plan]]. Short version: 27,408 courses are reachable from one central source (ISVU), semester and programme and status come out at 98% coverage, learning outcomes are the weak part, and prerequisites only exist on two faculty sites.
+
+Note that the catalog and the scheduler are two different apps. The scheduler is one programme deep and cares about edges, the catalog is university wide and cares about search. The plan is to keep them separate and let the catalog feed programmes into the scheduler.
+
+Second idea sitting on the same scraping: a mentor finder, matching my interests against what professors teach, publish and are funded to research. FER turns out to publish everything needed on one page per person (competencies, publications, coauthors, courses by level) while the national research system CroRIS adds project funding with end dates. Findings, blockers and the legal read are in [[mentor-finder]].
+
+The project splits cleanly in two from here, and the split is deliberate. Private: a path chooser, where I name a destination like ETH comp bio and it finds which people to work with and which courses to take, built on the idea that you get places through people rather than grades. Design and the honest problems with it are in [[path-chooser-model]]. Public: a Claude skill for navigating UNIZG teaching, courses and literature and what you can learn where, with no people as a queryable entity at all, scoped in [[public-skill-scope]]. People data stays private, course data can be public.
+
+The skill now also carries the horizontalna mobilnost rules, not just the catalog, because ISVU has nothing about who may enrol where and without it the models either refused the question or made the answer up. Eval and what went in: [[horizontalna-mobilnost-tuning]].

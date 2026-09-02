@@ -1,0 +1,110 @@
+# unizg catalog plan
+
+Plan for getting every UNIZG course into one searchable dataset. Everything below was probed against the live sites, not guessed. The full version with code samples lives in the repo on the `docs/unizg-catalog-plan` branch (`docs/unizg-catalog-plan.md`).
+
+## the one source that matters
+
+ISVU public data module, run by SRCE for the ministry. This is the same database the student offices use, exposed read only. One scraper covers all of UNIZG, not 33.
+
+Why it works: server rendered HTML (jQuery and Bootstrap, no SPA, so no headless browser needed), no auth, `robots.txt` says `Allow: /` with only `/javno/` disallowed, footer version was `2026.03.2` so it is maintained, academic years go back to 1976/77 and 2026/2027 is already published, and there is no server side pagination so a full course list arrives in one response (FFZG is 2,821 rows in 214 KB).
+
+## endpoints
+
+Base is `https://www.isvu.hr/visokaucilista/hr`.
+
+| path | gives |
+|---|---|
+| `/pretrazivanje` | all 125 institutions with their numeric IDs |
+| `/podaci/{inst}/predmeti` | full course list, one page, no pagination |
+| `/podaci/{inst}/predmeti/akademskagodina/{yyyy}` | same for a chosen year |
+| `/podaci/{inst}/akademskagodina/{yyyy}/predmeti/predmet/{code}` | course detail |
+| `/podaci/{inst}/dohvatirazine/{yyyy}` | study levels, JSON |
+| `/podaci/{inst}/razina/{r}/dohvatiizvedbe/{yyyy}` | delivery modes, JSON |
+| `/podaci/{inst}/razina/{r}/izvedba/{i}/akgodina/{yyyy}` | nested programme tree, JSON |
+| `/podaci/{inst}/nastavniprogram/{yyyy}/razina/{r}/izvedba/{i}/smjer/{s}` | curriculum grouped by semester |
+| `/podaci/{inst}/nastavnici` | teachers |
+
+The three JSON ones are not documented anywhere, I found them by reading the inline `$.getJSON` calls that populate the dropdowns on the nastavni program page. Plain GET, no tokens, but treat them as unstable and add a self check so breakage is loud.
+
+Level codes seen so far: 3 prijediplomski, 4 diplomski, 10 doktorski, 11 specijalistički. They vary per institution and per year, so do not hardcode them, ask `dohvatirazine`. Also only fetch a curriculum when the programme tree says `imaNastavniProgram == 1`, parent nodes often have none.
+
+## the trick that saves the whole job
+
+The course detail page has a table called `Predmet u nastavnom programu` with columns `Šifra studija | Naziv studija | Razina studija | Semestar izvođenja | obavezni/izborni`. It is a reverse index: every programme a course belongs to, with its semester and whether it is mandatory there. So the entire catalog can be built from just the course list plus the detail pages, without walking the programme tree at all. Walking the tree is only needed for izborna grupa groupings and their ECTS minimums.
+
+Worth remembering: one course legitimately sits in several programmes at different semesters with different status, so `semestar` has to be a list, not a single field. And the identity key has to be `(institutionId, isvuCode)`, never the name, because names repeat across faculties.
+
+## scale and coverage
+
+27,408 courses across 37 constituents for 2025/2026. Biggest are FFZG 2,821, PMF prirodoslovni 2,403, Pravni 1,525, FSB 1,513, Učiteljski 1,440, Kineziološki 1,212, Agronomski 1,113, FER 1,042. PMF is two separate ISVU institutions (37 matematički, 119 prirodoslovni) so it needs merging or clear labelling. Vojni studiji returns zero courses.
+
+I sampled 10 random courses at each of the 37 institutions, 370 course pages, and counted what is actually filled in:
+
+| field | coverage |
+|---|---|
+| semester, programme, obavezni/izborni | 98% |
+| nositelj (main prof) | 82% |
+| opis predmeta | 46% |
+| ishodi učenja | 34% |
+
+The ishodi number is bimodal, not evenly thin. FSB and PMF matematički are at 10/10, while Agronomski, FOI, MEF, Kineziološki, EFZG, Pravni, Metalurški and FBF are at flat zero. Also MEF and Muzička publish no nositelj at all, and FBF only had semester data on 3 of 10, which is worth a look before trusting FBF.
+
+## the gaps
+
+Ishodi učenja are not a structured field anywhere in ISVU. Where they exist they are prose buried inside `Opis predmeta` under institution specific headings like `OČEKIVANI ISHODI UČENJA NA RAZINI PREDMETA:` (PMF does that), while FFZG instead writes `Ciljevi kolegija` and `Sadržaj kolegija` and no outcomes at all. So pulling them out is a text segmentation problem: regex on the known headings gets most of it, an LLM pass over the roughly 12k non empty descriptions would improve recall on the odd formats.
+
+Preduvjeti DO exist in ISVU. I got this wrong twice before actually parsing the page properly. They are two optional fields, `Preduvjeti za upis predmeta` and `Preduvjeti za polaganje predmeta`, formatted as `Course name (položen)` or `Course name (odslušan)`, which maps straight onto the scheduler's `polozen` / `odslusan` enum. The reason I missed them: course detail fields are a `<dl>` where every field renders only when populated, and I was scanning for a fixed list of labels that did not include these two.
+
+Coverage measured over 444 courses (12 per institution): 10% have an upis prerequisite, 4% a polaganje one, spread across 22 of 37 faculties. Absent is not the same as none, since plenty of courses genuinely have no prerequisites. Best in ISVU by a wide margin is Arhitektonski at 8/12, then PMF-matematički 6/12, then Geotehnički, FOI and FBF at 4/12. FER is 0/12 in ISVU and 0/15 on its own site, so FER genuinely does not publish prerequisites anywhere.
+
+So the right strategy is a union: ISVU centrally for 22 faculties, topped up by the faculty sites for PMF and PBF which publish more completely there. This matters a lot for the scheduler, since it means the DAG is partly automatable university wide rather than only for two faculties.
+
+Proven end to end: the skill's `dag` command exports Arhitektonski's prijediplomski Arhitektura i urbanizam as 69 courses with 58 carrying prerequisites, landing on exactly 30.0 ECTS in every one of the six semesters, which is the check that the semester assignment is right.
+
+## faculty sites, verified
+
+Some faculties publish both gaps on their own sites. The CMS is Ekorre Academic and the URL pattern is `/{odsjek}/predmet/{slug}`. I crawled each candidate, collected all its course URLs, then fetched 15 at random and counted. Sampling 15 matters, because a course page only renders `Preduvjeti za:` when that course actually has prerequisites, so a single sample proves nothing (I got this wrong the first time).
+
+| faculty | sampled | preduvjeti | ishodi | ishodi in ISVU |
+|---|---|---|---|---|
+| PBF | 15 | 8/15 | 15/15 | 0/10 |
+| PMF | 15 | 5/15 | 5/15 | 3/10 |
+| FER | 15 | 0/15 | 13/15 | 0/10 |
+| ERF | 15 | 0/15 | 15/15 | 8/10 |
+| Stomatološki | 15 | 0/15 | 15/15 | 0/10 |
+| Kineziološki | 15 | 0/15 | 1/15 | 0/10 |
+| FPZG | 15 | 0/15 | 0/15 | 1/10 |
+
+So among faculty sites, only PMF and PBF publish prerequisites. Zero hits across 15 courses at five other faculties is good evidence they simply do not render the field. Read this together with the ISVU finding above: ISVU covers 22 faculties thinly, the faculty sites cover PMF and PBF more thickly, and the union beats either alone.
+
+The bigger win is ishodi, and it lands exactly where ISVU is empty. FER, Stomatološki and PBF are all 0/10 in ISVU but 13/15, 15/15 and 15/15 on their own sites. That is around 2,250 courses (FER 1,042, PBF 750, Stomatološki 458) whose learning outcomes are obtainable no other way. FER's pages turned out to be the richest of any faculty: numbered ishodi, ECTS, per type teaching hours, grading thresholds, even a `Sličan kolegij` cross reference to courses at EPFL and TU München.
+
+FKIT, Građevinski, RGN and FHS have no `/predmet/` route at all. FKIT uses `/zavod/{dept}/predmeti`, Građevinski has only programme pages, RGN is a different CMS entirely, FHS has nothing but a lifelong learning catalog. Each would need its own scraper. ADU and Muzička were unreachable from my network, which is inconclusive rather than a no.
+
+For parsing, PMF uses a legacy table layout and PBF a Bootstrap 5 one, but the inner markup is identical, so one regex covers both: `(Položen|Odslušan)\s*:\s*<a[^>]*href="[^"]*/predmet/([^"]+)"[^>]*>([^<]+)</a>`. Both condition types occur in the wild, which matches the scheduler's `polozen`/`odslusan` enum exactly, and the target is a slug, so a stable ID instead of a name string. Also no faculty site has a usable sitemap or robots.txt, so course URLs have to be found by crawling programme pages, 5 to 30 fetches per faculty before touching a single course.
+
+## dead end, do not spend time here
+
+MOZVAG, the AZVO Preglednik studijskih programa, was the obvious place to get structured learning outcomes since faculties recorded them there for accreditation. It was shut down on 1 February 2025. `mozvag.srce.hr` now redirects to a dead page. The replacement is called ISPiK and has no public browser yet.
+
+## status
+
+The public skill is built and committed, on the repo branch `feat/unizg-courses-skill` under `skills/unizg-courses/` (SKILL.md, references/institutions.md, scripts/isvu.py). Scoped to teaching data only, see [[public-skill-scope]]. The full dataset crawl is not built.
+
+## what to build
+
+Skill first, dataset second. No MCP server in either case, since the endpoints are unauthenticated plain GET and MCP only earns its keep for auth, session state or wrapping a proprietary SDK.
+
+A skill is basically already written, this note plus the repo doc is its content. It handles targeted lookups well ("what are the preduvjeti for Biokemija 1", "show FER's prijediplomski curriculum", "who teaches X"), costs about an hour since the endpoints are mapped, needs no infrastructure and is always current. What it cannot do is anything corpus wide, like "all izborni, 4 to 6 ECTS, zimski, anywhere in UNIZG, mentioning strojno učenje", because that needs the whole 27k locally. So the skill also doubles as the reference implementation the batch crawler reuses.
+
+The crawl itself is two phases. Phase A is the spine: institution list, then a course list per institution (37 requests), then a detail page per course (27.4k requests), which already yields everything at the coverage above. About 2.5 hours at a polite 3 req/s with the raw HTML cached on disk so parser changes need zero refetching. Phase B is the programme tree, only needed for izborna grupa rules. Then the faculty tier for the six faculties worth doing: PMF and PBF for prereqs and ishodi, FER, Stomatološki and ERF for ishodi only, skip Kineziološki and FPZG since their pages are thin.
+
+Politeness: descriptive user agent with a contact address, 3 req/s ceiling, backoff on 5xx, hard stop on 429, off peak hours. It is a public read only service, the whole job is comparable to one person browsing for an afternoon, but do not parallelise hard.
+
+Output has to be static JSON so the UI stays dependency free like the scheduler. 27k records gzip down to a few MB, fine to ship client side with a prebuilt inverted index and no server. Croatian diacritic insensitive matching is a must (č/c, ć/c, š/s, ž/z, đ/dj).
+
+## still undecided
+
+How wide v1 should be, since starting with two or three faculties validates the parser before committing to the full crawl (the hour columns differ per institution, FER uses `P A L S TJ` and FHS uses `P S PK LK SJ TJ`, so the parser has to read header rows). Whether to accept 34% ishodi and label the gaps honestly or invest in the LLM segmentation pass. Whether this deploys in the same Vercel project as the scheduler or its own. Whether historical years are interesting or current only. And whether to merge PMF's two IDs and the courses shared with UNIZG central (9996) or show them as they are.
+
+Sources: [ISVU public module](https://www.isvu.hr/visokaucilista/hr/pocetna) · [ISVU system overview](https://www.isvu.hr/sustav/) · [SRCE ISVU](https://www.srce.unizg.hr/en/isvu) · [AZVO on the MOZVAG shutdown](https://www.azvo.hr/2025/02/11/obavijest-korisnicima/)

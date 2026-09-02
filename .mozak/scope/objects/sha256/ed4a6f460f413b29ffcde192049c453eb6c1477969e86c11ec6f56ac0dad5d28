@@ -1,0 +1,87 @@
+# mentor finder
+
+Second idea on top of the course catalog: use the same scraping to find a good mentor or supervisor. What follows is everything I probed, what is open, what is gated, and what is legally sketchy. Companion to [[unizg-catalog-plan]].
+
+## professors from ISVU: thinner than expected
+
+`/podaci/{inst}/nastavnici` gives a plain roster, full name with titles, surname, and `zvanje` (academic rank). 415 entries at FER, 838 at PMF prirodoslovni. No email, no department, no detail page, and no link from a teacher to their courses.
+
+`/podaci/{inst}/organizacijskastruktura` would give the zavod or katedra but it is opt in per institution and FER refuses it outright, the page just says "Visoko učilište ne prikazuje javno organizacijsku strukturu".
+
+The value is in the join, not the roster. Course detail pages carry `Nositelji` and `Izvođači` with role codes (P predavanja, A auditorne, L laboratorij, S seminar) at 82% coverage, so crossing them with the roster gives each professor's full teaching portfolio: which courses, which faculty, which programmes, which study level including doctoral, plus every course's description, ishodi and literature. That is a topic fingerprint per person built only from data already verified as available.
+
+The catch is that there is no shared ID anywhere. ISVU does not expose the MBZ (matični broj znanstvenika), so joining the roster to courses, and joining ISVU to CroRIS, is fuzzy name matching across 27k records with Croatian diacritics and title prefixes. That is the main engineering risk in the whole mentor idea.
+
+## FER staff pages are the real find
+
+FER publishes a full mentor profile at `https://www.fer.unizg.hr/{ime}.{prezime}`, for example `/gordan.gledec`. Everything is server rendered in the HTML, the tabs are just CSS, so no XHR and no auth needed. What is on it:
+
+| field | example |
+|---|---|
+| rank | Redoviti profesor u trajnom izboru |
+| zavod | Zavod za primijenjeno računarstvo |
+| contact | email, phone, home extension, room (D-370) |
+| Kompetencije | keyword list: Natural language processing, Sentiment analysis, Morphology, Domain Name System, Web 2.0, IP networks |
+| Radovi | full publication list, title + coauthors + type ("izvorni znanstveni rad") + year + venue |
+| Područja istraživanja | research areas |
+| Profesionalni interesi i članstva | interests and memberships |
+| Životopis | CV |
+| Nastava | courses split by preddiplomski / diplomski / poslijediplomski doktorski |
+| external IDs | Google Scholar (`scholar.google.hr/citations?user=...`), Publons |
+
+So for FER we can skip CroRIS entirely. The staff page is better than the national system for this purpose because it is already joined to the person, their department, the courses they teach, their competency keywords and their publications, all in one request. The `Kompetencije` list in particular looks like IEEE taxonomy keywords, which is exactly the right shape for matching a student's interests to a supervisor.
+
+Important limit: the `{ime}.{prezime}` pattern is FER specific. I tried the obvious equivalents at PMF, PBF and FSB and all 404. So staff pages are bespoke per faculty, same story as the `/predmet/` tier.
+
+## CroRIS, the national research system
+
+CROSBI (the Croatian scientific bibliography) has migrated into CroRIS, which exposes four documented REST APIs.
+
+| API | state |
+|---|---|
+| Projekti | open, verified with real data |
+| Ustanove | open, live |
+| CROSBI (publications) | endpoint live but I cannot work out the params |
+| Znanstvenici (registry of scientists) | requires authentication obtained from the ministry |
+
+The Projekti API is the surprise. `GET https://www.croris.hr/projekti-api/projekt/1` returns real content: `hrSifraProjekta` (IP-2014-09-4533), acronym, `pocetak` and `kraj` dates, `totalCost` in EUR, bilingual title, and the full bilingual abstract in `summary`. That is what a professor is actually funded to research, with the money and the end date attached, and it needs no auth.
+
+`https://www.croris.hr/crosbi-api/publikacija` returns 400 rather than 404, so the endpoint exists and wants query params. GET only, POST returns 405. I guessed id, mbz, godina, page/size, ustanovaId, godinaOd/godinaDo, naslov, doi and all returned 400 "Greška u podacima zahtjeva". The docs are at `wiki.srce.hr/display/CRORIS/CROSBI+API` and that host is network unreachable, connection refused rather than 404, and unreachable for me too. Blocked until someone reads that page or mails `podrska@croris.hr`.
+
+Two caveats worth remembering. The Znanstvenici registry is the authoritative person record and it is ministry gated, so no open access to MBZ or canonical affiliations. And `www.croris.hr` currently serves a "Nalazite se na CroRIS probnoj okolini" (test environment) banner on both its `/crosbi/` and `/osobe/` modules, so anything derived from the interactive modules is not confirmed production data. The Projekti API data looked genuinely real so the banner probably only affects those modules, but confirm before trusting profile pages. Also found `/osobe/profil/{id}` (public, ~200 KB, shows CroRIS ID, name, titula, MBZ + active status, memberships, an Objave section) and `/osobe/search/public/dt`, a DataTables endpoint that 500s without the full `columns[i][data]` param set.
+
+## what a mentor finder could actually rank on
+
+The obvious version matches my interests to a professor's topics. The signals worth having are the ones you cannot see by browsing:
+
+Active funding with an end date, from the Projekti API. A project ending in two years means they have money and a reason to take someone now, and a professor with no active grant may have no funding for me. Invisible on any faculty webpage and probably the single most decisive fact.
+
+Who actually teaches at doctoral level, from ISVU razina 10, which separates people in the doctoral pipeline from people who only teach undergrads.
+
+Rank as a supervision gate, since supervision generally needs docent or above, and `zvanje` also distinguishes a `redoviti profesor u trajnom zvanju` from a `povjera predavanja` external lecturer, who is a very different proposition.
+
+Divergence between what someone teaches and what they publish. Teaching intro courses while publishing in a hot area is a different opportunity from doing both in one area, both useful but differently.
+
+Coauthor graph, from the publication lists, so I find a lab cluster rather than one name. FER's Radovi tab already gives coauthors per paper, so this works for FER today without CROSBI.
+
+What is not available anywhere official: teaching quality or student ratings, and any "accepting students" signal. Nobody publishes those.
+
+## is this legal
+
+Not legal advice, and worth an actual lawyer if this ever goes public. My read of the situation:
+
+Crawling permission is fine for ISVU. Its `robots.txt` is `Allow: /` with only `/javno/` disallowed, so `/visokaucilista/` is explicitly permitted. Faculty sites mostly have no `robots.txt` at all (404), which is neither permission nor prohibition.
+
+The bigger issue is not copyright, it is the EU sui generis database right (Directive 96/9/EC, in Croatia the Zakon o autorskom pravu i srodnim pravima). A database maker who put substantial investment into it gets protection against extraction of a substantial part, independent of whether the individual facts are copyrightable. Hoovering all 27,408 courses is plausibly extraction of a substantial part of the ISVU database. There is an exception for private and non commercial use, which covers a personal tool, but republishing it as a public searchable service is a genuine risk. This is the part most people scraping do not know exists.
+
+Then GDPR, which is where the professor half gets sensitive. Names, ranks, emails, phone numbers, room numbers, publication lists and research interests are all personal data even though they are professional and public. Legitimate interest (Art 6(1)(f)) is an arguable basis, but the obligations that actually bite are purpose limitation, data minimisation, the Art 14 duty to inform people whose data you did not get from them (awkward at any scale), and the right to object and to erasure. Two practical mitigations: do not collect contact details at all, since email, phone and room number are the highest sensitivity and lowest value fields for matching, and be careful that a "mentor ranking" does not become evaluative profiling of named individuals, which raises the stakes considerably compared to a neutral directory.
+
+So the honest split. A private tool I run for myself, minimised fields, cached, no contact details, is low risk and squarely in normal academic use. A public site that ranks named professors as mentors is a different thing legally and I would not put that up without asking first. Asking is cheap and there is a legitimate channel: CroRIS publishes official APIs and a support address, and SRCE runs both ISVU and CroRIS, so a short mail explaining the project could well get explicit permission, which beats hoping nobody minds.
+
+Technical politeness is the easy part and non negotiable regardless: descriptive user agent with a real contact address, hard ceiling around 3 req/s, backoff on 5xx, stop on 429, off peak, and cache everything so a rerun makes no network calls. These are publicly funded services on modest hardware.
+
+## blockers
+
+CROSBI publication params, needs `wiki.srce.hr/display/CRORIS/CROSBI+API` which neither of us can reach, so either find it mirrored or mail `podrska@croris.hr`. Whether the croris.hr test environment banner means the person data is fake. And how many faculties besides FER publish staff pages with competencies and publications, which needs the same per faculty check as the `/predmet/` tier.
+
+Sources: [ISVU nastavnici, FER](https://www.isvu.hr/visokaucilista/hr/podaci/36/nastavnici) · [FER staff page example](https://www.fer.unizg.hr/gordan.gledec) · [CroRIS APIs](https://www.croris.hr/projekti-api/) · [CroRIS at SRCE](https://www.srce.unizg.hr/croris) · [CROSBI API docs, unreachable](https://wiki.srce.hr/display/CRORIS/CROSBI+API)

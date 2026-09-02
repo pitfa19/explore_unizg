@@ -1,0 +1,51 @@
+# public skill scope (courses only, no people)
+
+The public half of the project: a Claude skill that helps navigate UNIZG teaching, so what you can learn, where, and which literature is used. Explicitly no people data, that stays in the private tool. Companion to [[unizg-catalog-plan]], deliberately separate from [[mentor-finder]] and [[path-chooser-model]].
+
+## skill, not MCP
+
+MCP earns its keep for auth, session state, connection pooling, or wrapping a proprietary SDK. The ISVU endpoints are unauthenticated plain GET, so an MCP server would be infrastructure to host and maintain forever in exchange for nothing. A skill is a markdown file, just as distributable (as a repo or plugin others drop in), and needs no hosting. Skill.
+
+## what is in scope
+
+Everything factual about teaching, which is also the legally cleanest layer since there is no personal data in it at all:
+
+- course lookup by name, code, faculty, semester, ECTS, obavezni/izborni
+- what a course actually covers: `Opis predmeta`, and ishodi učenja where they exist
+- literature, both `Obavezna literatura` and `Preporučena literatura`, which is the part I specifically want and which nobody exposes usefully
+- curriculum structure per programme, semester by semester, including izborna grupa rules and their ECTS minimums
+- real workload, the P/A/L/S/TJ hour split, so hours-per-ECTS is computable
+- language of instruction, so "which courses are taught in English" becomes answerable
+- historical curricula back to 1976/77, for how a programme changed
+- cross-faculty comparison, "who else teaches thermodynamics and how do their syllabi differ"
+
+## the horizontalna mobilnost angle
+
+The strongest public use case, and it is a real student need nobody serves. "Which courses at other UNIZG faculties could I actually enrol in", "which of them are in English", "which have prerequisites I already satisfy". FKIT even has a dedicated `/horizontalna_mobilnost/` section with cross-enrolment rules. This connects to the YouTube video material in the rector_award vault.
+
+## the people line, honestly drawn
+
+I cannot make this "never sees a name", because `Nositelji` and `Izvođači` are printed on every course detail page, so any HTTP response the skill fetches contains them. Pretending otherwise would be theatre. The line that actually works is about aggregation, not exposure:
+
+Fine: naming who teaches a course when answering a question about that course. That is information the faculty publishes for students, in context, one course at a time.
+
+Not fine: building a person index, searching or filtering by professor, aggregating a teaching portfolio per person, ranking or scoring people, storing contact details (email, phone, room), or joining to publications or projects. All of that is the private tool's job and it stays there.
+
+So the rule is: no person as a first-class entity. A name can appear as an attribute of a course, never as a row you can query. That keeps the public artifact out of GDPR profiling territory while not lying about what is on the page.
+
+## what the skill file needs to contain
+
+- the endpoint catalog and the institution ID table from [[unizg-catalog-plan]]
+- the razina and izvedba codes, plus the rule to ask `dohvatirazine` rather than hardcode them, since they vary per institution and year
+- the parsing gotchas: parse table header rows because hour columns differ per faculty (FER `P A L S TJ`, FHS `P S PK LK SJ TJ`), and only fetch a curriculum when `imaNastavniProgram == 1`
+- the `Predmet u nastavnom programu` reverse-index trick, since it is what makes single-course lookups cheap
+- Croatian diacritic-insensitive matching (č/c, ć/c, š/s, ž/z, đ/dj), otherwise search silently fails
+- politeness limits baked in as instructions, not suggestions: descriptive user agent with contact, 3 req/s ceiling, backoff on 5xx, stop on 429
+- a self check, because the three JSON endpoints are undocumented internals found by reading inline `$.getJSON` calls, so fetch a known institution and assert the shape to make breakage loud instead of silent
+- the coverage caveats, so it does not claim a course has no ishodi when the truth is that faculty never filled the field (46% opis, 34% ishodi university-wide, and it is bimodal not evenly thin)
+
+## legal read for the public half
+
+Superseded and understated, the sourced version is in [[legal-basis]]. Short of it: ZAPSP čl. 18(3) names "akademski programi" as official texts that stop being copyright protected once published for public information, and ZPPI čl. 27(1) gives everyone a positive right to reuse, commercial included. The database right below is still the real constraint though.
+
+Much safer than the people half. No personal data as a queryable entity means GDPR largely falls away. ISVU `robots.txt` explicitly allows `/visokaucilista/`. The residual risk is the EU sui generis database right, which bites on bulk extraction and redistribution, not on a skill that queries live per question. That is an argument for the skill shape over shipping a scraped dataset: a skill that fetches on demand is a browser, not a copy. If a bulk dataset ever gets published, that is when to ask SRCE for permission, and there is a legitimate channel since they run both ISVU and CroRIS.

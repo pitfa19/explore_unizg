@@ -1,0 +1,19 @@
+# legal basis for the ISVU data and the official docs
+
+**plan** Wanted to settle properly whether I can use this stuff, with statute text rather than vibes. Two separate bodies: the ISVU catalog the tools read live, and the horizontalna mobilnost documents I quoted verbatim into a public repo (Smjernice, Pravilnik čl. 32, FOI procedura). Turns out the position is a lot stronger than what I had written in [[public-skill-scope]], which flagged the database right as the residual risk without knowing about either of the two provisions below.
+
+The big one is ZAPSP čl. 18(3), NN 111/21. Official texts from legislation, administration and judiciary, and this is the part that matters, "službeni programi, kao što su **školski i akademski programi**, programi rada i slično, kao i njihove zbirke", are protected from creation but "u trenutku kad budu predani u bilo kakav službeni postupak ili budu predani službenoj osobi radi informiranja javnosti ili javnog korištenja ili kad budu objavljeni radi službenog informiranja javnosti, **prestaju biti zaštićeni autorskim pravom**". Akademski programi is named in the statute, which is exactly the nastavni i studijski program data ISVU publishes. And "odluke" covers the Smjernice, which carries a KLASA and URBROJ so it is a formal administrative act. Both were published for public information, so protection has already ceased by law and the copyright footer cannot bring it back.
+
+Second, ZPPI čl. 27(1): "Svaki korisnik ima pravo na ponovnu uporabu informacija u komercijalne ili nekomercijalne svrhe". Not just "not forbidden", an actual statutory right, and commercial use is in there. Korisnik is defined in čl. 5(1) as any domestic or foreign natural or legal person, and čl. 5(2) defines tijela javne vlasti to include pravne osobe čiji je osnivač RH, one koje obavljaju javnu službu, and one financed mostly or wholly from the state budget, so the ministry, SRCE and the university all qualify.
+
+robots.txt still checks out live, `Allow: /` with only `/javno/` disallowed, and `/visokaucilista/` is the only path the code touches.
+
+Counter signal worth writing down rather than hiding: the ISVU footer says "Copyright (c) :: Ministarstvo znanosti, obrazovanja i mladih Republike Hrvatske. Sva prava zadržana." No separate uvjeti korištenja page anywhere on the site. It is boilerplate and it does not override either statute, but it is there.
+
+The one thing genuinely not covered is the sui generis database right. Čl. 18(3) kills copyright in the collection, but the database producer right under Direktiva 96/9/EZ is a separate right that survives it and bites on extraction of a substantial part. So the current design is what keeps this clean and is not just politeness: query live per question, cache only to `~/.cache/isvu` or `/tmp` which is transient and on the user's own machine, and redistribute nothing. The repo ships exactly one extract, `kolegiji.json` at about 10 courses out of 27,408, which is insubstantial by any reading. Publishing a bulk copy of the catalog is the thing that would flip the analysis, and that is when to go ask SRCE, since there is a legitimate channel.
+
+Personal data is the other live area and GDPR does not care about ZAPSP at all. The scope limit is the mitigation and it only holds as long as nobody adds search or filtering by professor.
+
+**todo** The legal read section in [[public-skill-scope]] is now out of date, it predates both provisions and understates the position. Worth writing this into the repo as `docs/legal-basis.md` too so it travels with the code rather than only living here.
+
+Sources: [ZAPSP NN 111/2021](https://narodne-novine.nn.hr/clanci/sluzbeni/2021_10_111_1941.html) · [ZPPI](https://www.zakon.hr/z/126/zakon-o-pravu-na-pristup-informacijama) · <https://www.isvu.hr/robots.txt>
