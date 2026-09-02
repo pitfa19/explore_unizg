@@ -7,3 +7,18 @@ repository:
   revision: 1fe5d4c4b047e4c0f3a11801a77c36e67a478331
 owned_paths:
   - .mozak
+  - "1 Incoming first year.txt"
+  - api
+  - CITATION.cff
+  - CLAUDE.md
+  - docs
+  - index.html
+  - js
+  - kolegiji_dag
+  - kolegiji.json
+  - LICENSE
+  - mcp
+  - README.md
+  - skills
+  - styles.css
+  - vercel.json

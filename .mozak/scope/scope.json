@@ -15,11 +15,26 @@
       ],
       "project": {
         "manifest_path": "projects/explore-unizg/.mozak/project.yml",
-        "manifest_sha256": "27cf49f247ca6282ace7cfe0bc714dcd70db6d5b0fa19f15b8bb9424b5fc76e8",
+        "manifest_sha256": "95472d7d2832b901ca8067842bf5d594f80b2d3740fef46bda81afda6a985460",
         "project_id": "explore-unizg",
         "repository_revision": "1fe5d4c4b047e4c0f3a11801a77c36e67a478331",
         "owned_paths": [
-          ".mozak"
+          ".mozak",
+          "1 Incoming first year.txt",
+          "api",
+          "CITATION.cff",
+          "CLAUDE.md",
+          "docs",
+          "index.html",
+          "js",
+          "kolegiji_dag",
+          "kolegiji.json",
+          "LICENSE",
+          "mcp",
+          "README.md",
+          "skills",
+          "styles.css",
+          "vercel.json"
         ]
       }
     }
