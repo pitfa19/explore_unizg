@@ -497,12 +497,17 @@ def _walk_upstream(root, all_courses, max_depth=None):
             "unresolved": unresolved, "depth_truncated": truncated}
 
 
-def _flatten(studies, out, depth=0):
+def _flatten(studies, out, depth=0, category=None):
     for s in studies:
+        children = s.get("listaPodredjenihStudija") or []
+        current_category = category
+        if children and not s.get("imaNastavniProgram"):
+            current_category = s.get("nazivSmjera") or category
         out.append({"smjer": s.get("sifraSmjera"), "naziv": s.get("nazivSmjera"),
                     "tip": s.get("nazivTipaSmjera"), "semestara": s.get("trajeElUstNast"),
+                    "kategorija": current_category,
                     "has_curriculum": bool(s.get("imaNastavniProgram")), "depth": depth})
-        _flatten(s.get("listaPodredjenihStudija") or [], out, depth + 1)
+        _flatten(children, out, depth + 1, current_category)
     return out
 
 # ---------------------------------------------------------------- dispatch
