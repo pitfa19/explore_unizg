@@ -6,6 +6,7 @@ on the stdlib plus the ISVU client in skills/unizg-courses/scripts/isvu.py.
 """
 import importlib.util
 import json
+import math
 import os
 import sys
 
@@ -36,8 +37,8 @@ isvu = _load_isvu()
 
 INSTRUCTIONS = """\
 Read-only access to the official University of Zagreb (UNIZG) course catalog, the ISVU public data
-module that SRCE runs for the ministry. 37 constituent faculties, roughly 27,400 courses, academic
-years back to 1976/77.
+module that SRCE runs for the ministry. Institutions are discovered live, including the central
+university's own catalog. Counts and published fields vary by academic year.
 
 WHAT THIS IS FOR
 Teaching data: what a course covers, its ECTS, semester, workload, prerequisites, and its required
@@ -78,10 +79,22 @@ every constituent's website in 2024 and found the information mostly absent, bur
 missing web page is evidence about that faculty's website and not about the student's rights. Say it
 that way. If you do not know a fee or a deadline, say the faculty sets it. Do not guess a number.
 
-ISVU answers the catalog half: omitting faculty_id from unizg_courses searches all 37 constituents at
-once, which is how you answer "where else is this taught" and "what would I actually be signing up
-for". Do not offer to filter by teaching language: it is published for only ~12% of courses and marked
-English for ~1%, so absence carries no information.
+ISVU answers the catalog half: omitting faculty_id from unizg_courses searches all discovered UNIZG entities, including the central university,
+which is how you answer "where else is this taught" by COURSE TITLE. For topics inside syllabi, use
+unizg_discover and report its bounded coverage. Narrow candidates explicitly where possible.
+For English-taught courses, use unizg_sources to find official annual English-course lists. The ISVU
+language field is often absent; missing language means unknown, never that English is unavailable.
+
+SOURCE DISCOVERY AND FRESHNESS
+unizg_sources maps official faculty syllabi, learning-outcome PDFs, English-offering lists, mobility
+forms, calendars and timetables. A listed URL is a retrieval route, not proof its entire content was
+parsed. Unknown/unmapped routes remain unknown. Follow official documents when the client supports
+reading them; do not claim that locating a PDF equals extracting all of its outcomes.
+unizg_course enriches supported FER/FOI records from verified faculty pages, with source metadata and
+warnings. Keep recommended background separate from formal enrollment/exam prerequisites. The
+academic-year default rolls over on October 1; pass year explicitly for historical comparisons.
+Source years and missing field coverage must be stated. Never silently mix historical ISVU records
+with an unverified current faculty page.
 
 SCOPE LIMIT, PLEASE RESPECT IT
 This is not a directory of academics. ISVU prints teacher names on every course page, so they appear
@@ -91,21 +104,22 @@ portfolio, rank people, or collect contact details. A name is an attribute of a 
 to query. If asked for people-centric analysis, say it is out of scope here.
 
 DATA COVERAGE, STATE THIS HONESTLY
-Semester, programme and obavezni/izborni status are ~98% populated. Course leader ~82%. Descriptions
-only 46%, learning outcomes (ishodi ucenja) only 34%, and prerequisites about 10%. Coverage is
-bimodal, not evenly thin: FSB and PMF-matematicki fill in nearly everything, while Agronomski, FOI,
-MEF, Kinezioloski, EFZG and Pravni publish no learning outcomes at all. When a field comes back
-empty, say the faculty did not publish it. Never imply the course lacks the thing.
+Historical ISVU samples found descriptions, learning outcomes and prerequisites sparsely populated.
+These are ISVU observations, not a finding that the faculty publishes nothing elsewhere. Empty means
+"not returned by this source" unless the source explicitly states none. Check unizg_sources for the
+next official route. FER and FOI publish richer course pages; Pravni publishes learning-outcome PDFs.
+Search failures and partial coverage are not evidence that a course or topic does not exist.
 
-Learning outcomes are not a separate field. Where present they sit inside the description under
+Learning outcomes are not a separate ISVU field. Where present they sit inside the description under
 headings such as "OCEKIVANI ISHODI UCENJA NA RAZINI PREDMETA:" (PMF) while other faculties write
 "Ciljevi kolegija" and "Sadrzaj kolegija" and no outcomes at all. Read them out of the description.
 
 A course can belong to several programmes at different semesters with different obavezni/izborni
 status, so treat semester as per-programme, never as one value for the course.
 
-PMF is two separate institutions, 37 (matematicki odsjek) and 119 (prirodoslovni odsjeci). When the
-user says "PMF" search both and say which one a result came from. Institution 9996 is the central
+PMF is two separate institutions, 37 (matematicki odsjek) and 119 (prirodoslovni odsjeci). The PMF
+alias searches both in unizg_courses/unizg_discover. For single-programme/detail operations choose
+the explicit ID from the preceding result; ambiguous PMF is rejected rather than guessed. Institution 9996 is the central
 university entity, not an umbrella: its courses are real, separate, mostly interdisciplinary.
 
 BUILDING A PREREQUISITE GRAPH
@@ -121,8 +135,9 @@ programme laid out. `max_depth` bounds the walk if even the chain is too big; ma
 the direct prerequisites.
 
 Tell them prerequisite coverage is patchy: Arhitektonski is the richest in ISVU, PMF and PBF publish
-more on their own faculty sites, and FER publishes none anywhere. An empty preduvjeti list means
-nothing was published, which is not the same as the course having no prerequisites. Where a faculty
+more on their own faculty sites, and FER's faculty pages can publish recommended background even
+when ISVU's formal prerequisites are empty. Do not turn that background into formal enrollment edges.
+An empty preduvjeti list means nothing was returned by this source, which is not the same as the course having no prerequisites. Where a faculty
 publishes nothing, a target chain comes back as the single course, and you should say why rather than
 implying the course has no prerequisites.
 
@@ -140,7 +155,7 @@ TOOLS = [
         "name": "unizg_courses",
         "description": ("Find courses by name across a UNIZG faculty. Diacritic-insensitive, so "
                         "'racunarstvo' matches 'Računarstvo'. Returns course codes to pass to "
-                        "unizg_course. Omit faculty_id to search all 37 constituents at once, "
+                        "unizg_course. Omit faculty_id to search the live UNIZG roster, "
                         "which takes about 15 s and is the right way to answer 'where else is "
                         "this taught'. If more matched than the limit, the result says so and "
                         "lists the count per faculty: report that, never imply completeness."),
@@ -152,7 +167,7 @@ TOOLS = [
                 "faculty_id": {"type": "integer", "description": "ISVU institution id, e.g. 36 for FER."},
                 "faculty": {"type": "string", "description": "Faculty name or abbreviation if the id is unknown."},
                 "year": {"type": "integer", "description": "Academic year start, e.g. 2025 for 2025/2026."},
-                "limit": {"type": "integer", "default": 40},
+                "limit": {"type": "integer", "default": 40, "minimum": 1, "maximum": 500},
             },
         },
     },
@@ -169,6 +184,8 @@ TOOLS = [
                 "faculty": {"type": "string", "description": "Faculty name or abbreviation, instead of the id."},
                 "code": {"type": "string", "description": "ISVU course code (sifra), from unizg_courses."},
                 "year": {"type": "integer"},
+                "enrich": {"type": "boolean", "default": True,
+                           "description": "Add verified faculty-source data where supported. False returns only ISVU."},
             },
             "required": ["code"],
         },
@@ -234,7 +251,7 @@ TOOLS = [
     },
     {
         "name": "unizg_institutions",
-        "description": "The 37 UNIZG constituent faculties with their ISVU ids, cities and course counts.",
+        "description": "Live UNIZG institution roster, including the central university, with ISVU ids and cities.",
         "inputSchema": {
             "type": "object",
             "properties": {"query": {"type": "string", "description": "Filter by name fragment."}},
@@ -253,6 +270,44 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {}},
     },
 ]
+
+TOOLS.extend([
+    {
+        "name": "unizg_sources",
+        "description": (
+            "Find official retrieval routes beyond ISVU: faculty syllabi, learning-outcome PDFs, "
+            "English-course lists, mobility forms, calendars and timetables. Returns source URLs "
+            "and explicit coverage status, not the content of every linked document. Use when "
+            "ISVU omits information; an unmapped route is not proof the faculty publishes nothing."),
+        "inputSchema": {"type": "object", "properties": {
+            "faculty_id": {"type": "integer"}, "faculty": {"type": "string"},
+            "kind": {"type": "string", "description": "Optional source category; omit to list all."},
+        }},
+    },
+    {
+        "name": "unizg_discover",
+        "description": (
+            "Bounded search inside course titles, syllabi and learning outcomes, with optional "
+            "ECTS/programme/language filters. Unlike unizg_courses, can find a topic absent from "
+            "the title. Narrow faculty and candidate_query (a title fragment) before reading "
+            "up to max_courses details. Example: query='grupiranje', candidate_query='strojno', "
+            "faculty='FER'. Always report coverage and failures. This is NOT an exhaustive "
+            "university-wide content index and does not automatically translate queries."),
+        "inputSchema": {"type": "object", "required": ["query"], "properties": {
+            "query": {"type": "string"},
+            "faculty_id": {"type": "integer"}, "faculty": {"type": "string"},
+            "year": {"type": "integer"},
+            "candidate_query": {"type": "string", "description": "Optional title fragment to bound candidate courses before reading syllabi."},
+            "max_courses": {"type": "integer", "default": 30, "minimum": 1, "maximum": 100},
+            "limit": {"type": "integer", "default": 20, "minimum": 1, "maximum": 100},
+            "ects_min": {"type": "number", "minimum": 0},
+            "ects_max": {"type": "number", "minimum": 0},
+            "semester": {"type": "integer", "minimum": 1},
+            "status": {"type": "string", "enum": ["obavezni", "izborni"]},
+            "language": {"type": "string", "description": "Published language only. Missing language stays unknown, not evidence of non-availability."},
+        }},
+    },
+])
 
 # --------------------------------------------------------- horizontalna mobilnost
 # The rules half of the cross-faculty question. ISVU has none of this, and before it was written in
@@ -395,12 +450,13 @@ def _institutions(unizg_only=True):
             out.append({"id": int(idm.group(1)), "naziv": cells[0],
                         "nadredjena": cells[1], "grad": cells[2]})
     if unizg_only:
-        out = [x for x in out if "Sveučilište u Zagrebu" in x["nadredjena"]]
+        out = [x for x in out if x["id"] == 9996
+               or x["nadredjena"] == "Sveučilište u Zagrebu"]
     return out
 
 
 ALIASES = {
-    "fer": 36, "pmf": 119, "pmf-mat": 37, "pmf matematicki": 37, "pmf-prir": 119,
+    "fer": 36, "pmf-mat": 37, "pmf matematicki": 37, "pmf-prir": 119,
     "ffzg": 130, "fsb": 120, "efzg": 67, "pbf": 58, "fkit": 125, "foi": 16,
     "mef": 108, "pravni": 66, "arhitektonski": 54, "agronomski": 178, "erf": 13,
     "fpzg": 15, "fpz": 135, "rgn": 195, "kif": 34, "vef": 53, "adu": 1053,
@@ -418,8 +474,10 @@ def resolve_faculty(args):
     if raw in (None, ""):
         raw = args.get("faculty")
     if isinstance(raw, bool):
-        raw = None
+        return None, "faculty_id must identify an institution, not a boolean."
     if isinstance(raw, (int, float)):
+        if not math.isfinite(raw) or raw != int(raw) or raw < 1:
+            return None, "faculty_id must be a positive integer."
         return int(raw), None
     name = str(raw or "").strip()
     if name.isdigit():
@@ -427,6 +485,8 @@ def resolve_faculty(args):
     if not name:
         return None, "Give faculty_id or faculty. Call unizg_institutions to list them."
     key = isvu.fold(name)
+    if key == "pmf":
+        return None, "PMF has two divisions: 37 (mathematics), 119 (natural sciences). Give faculty_id for this operation."
     if key in ALIASES:
         return ALIASES[key], None
     hits = [i for i in _institutions() if key in isvu.fold(i["naziv"])]
@@ -436,6 +496,19 @@ def resolve_faculty(args):
         return None, f"No UNIZG faculty matched {name!r}. Call unizg_institutions."
     return None, ("Ambiguous, pick one: "
                   + "; ".join(f"{h['naziv']} (id {h['id']})" for h in hits[:10]))
+
+
+def resolve_faculties(args):
+    """Search operations can cover multiple divisions; detail lookups cannot."""
+    raw = args.get("faculty_id")
+    if raw in (None, ""):
+        raw = args.get("faculty")
+    if raw in (None, ""):
+        return [i["id"] for i in _institutions()], None
+    if isvu.fold(str(raw).strip()) in ("pmf", "prirodoslovno-matematicki fakultet"):
+        return [37, 119], None
+    fid, err = resolve_faculty(args)
+    return ([fid] if fid is not None else []), err
 
 
 def _prereqs_from(docs, course):
@@ -543,6 +616,37 @@ def check_args(tool, args):
     missing = [k for k in tool["inputSchema"].get("required", []) if args.get(k) in (None, "")]
     if missing:
         return f"Missing required argument(s) {', '.join(missing)} for {tool['name']}."
+    for key, value in args.items():
+        if value is None:
+            continue
+        schema = props[key]
+        kind = schema.get("type")
+        if kind == "integer" and key != "faculty_id":
+            if isinstance(value, str) and value.strip().lstrip('-').isdigit():
+                value = args[key] = int(value)
+            if isinstance(value, bool) or not isinstance(value, int):
+                return f"{key} must be an integer."
+        if kind == "number":
+            try:
+                finite = not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value)
+            except OverflowError:
+                finite = False
+            if not finite:
+                return f"{key} must be a finite number."
+        if kind == "boolean" and not isinstance(value, bool):
+            return f"{key} must be a boolean."
+        if kind == "string" and not isinstance(value, str):
+            return f"{key} must be a string."
+        if "minimum" in schema and value < schema["minimum"]:
+            return f"{key} must be at least {schema['minimum']}."
+        if "maximum" in schema and value > schema["maximum"]:
+            return f"{key} must be at most {schema['maximum']}."
+        if "enum" in schema and value not in schema["enum"]:
+            return f"{key} must be one of {schema['enum']}."
+    if args.get("year") is not None and args["year"] < 1976:
+        return "year must be an academic-year start of 1976 or later."
+    if args.get("max_depth") is not None and args["max_depth"] < 0:
+        return "max_depth must be nonnegative."
     return None
 
 
@@ -555,7 +659,7 @@ def call_tool(name, args):
     bad = check_args(tool, args)
     if bad:
         return {"error": bad}
-    year = int(args.get("year") or 2025)
+    year = args.get("year") if args.get("year") is not None else isvu.current_academic_year()
 
     if name == "unizg_mobility_rules":
         return {"rules": MOBILITY_RULES,
@@ -571,19 +675,60 @@ def call_tool(name, args):
             res = [x for x in res if isvu.fold(q) in isvu.fold(x["naziv"])]
         return {"count": len(res), "institutions": res}
 
+    if name == "unizg_discover":
+        from _discovery import discover
+        targets, err = resolve_faculties(args)
+        if err:
+            return {"error": err}
+        return discover(args, targets, year, isvu.course_list,
+                        lambda fid, code, requested_year: call_tool("unizg_course", {
+                            "faculty_id": fid, "code": str(code), "year": requested_year}))
+
+    if name == "unizg_sources":
+        from _sources import sources_for
+        kind = args.get("kind")
+        has_faculty = args.get("faculty_id") not in (None, "") or args.get("faculty") not in (None, "")
+        if has_faculty:
+            targets, err = resolve_faculties(args)
+            if err:
+                return {"error": err}
+            if len(targets) == 1:
+                result = sources_for(targets[0], kind)
+            else:
+                result = sources_for(None, kind)
+                result["sources"] = [s for s in result["sources"]
+                                     if set(s["faculty_ids"]) & set(targets)]
+                result["faculty_ids"] = targets
+                result["unmapped_faculty_ids"] = [fid for fid in targets
+                    if not any(fid in s["faculty_ids"] for s in result["sources"])]
+                result["status"] = "partial" if result["sources"] else "unknown"
+        else:
+            result = sources_for(None, kind)
+            try:
+                institutions = _institutions()
+                mapped = {fid for source in result["sources"] for fid in source["faculty_ids"]}
+                result["unmapped_faculty_ids"] = [i["id"] for i in institutions if i["id"] not in mapped]
+                result["institutions"] = [{"id": i["id"], "naziv": i["naziv"],
+                    "additional_source_status": "partial" if i["id"] in mapped else "unknown"}
+                    for i in institutions]
+                result["institution_roster"] = "live_isvu"
+            except isvu.RateLimited:
+                raise
+            except Exception as exc:
+                result["institution_roster"] = "snapshot_only"
+                result["warnings"] = [f"Live institution discovery failed: {type(exc).__name__}. Directory coverage may be stale."]
+        result["available_kinds"] = sorted({s["kind"] for s in sources_for()["sources"]})
+        return result
+
     if name == "unizg_courses":
         q = str(args.get("query") or "").strip()
         has_faculty = args.get("faculty_id") not in (None, "") or args.get("faculty") not in (None, "")
         if not q and not has_faculty:
             return {"error": "Give a query, or a faculty to list in full. Both cannot be omitted: "
                              "that would return all ~27,400 courses."}
-        if has_faculty:
-            fid, err = resolve_faculty(args)
-            if err:
-                return {"error": err}
-            targets = [fid]
-        else:
-            targets = [i["id"] for i in _institutions()]
+        targets, err = resolve_faculties(args)
+        if err:
+            return {"error": err}
         limit = int(args.get("limit") or 40)
 
         # A search with no faculty needs one page per faculty. Warm them in one concurrent
@@ -593,11 +738,14 @@ def call_tool(name, args):
             isvu.fetch_all([isvu.course_list_path(f, year) for f in targets])
 
         needle = isvu.fold(q)
-        hits, per_faculty = [], {}
+        hits, per_faculty, failed = [], {}, []
         for fid in targets:
             try:
                 courses = isvu.course_list(fid, year)
+            except isvu.RateLimited:
+                raise
             except Exception:
+                failed.append(fid)
                 continue                     # one unreachable faculty must not sink the search
             for c in courses:
                 if needle in isvu.fold(c["naziv"]):
@@ -608,8 +756,13 @@ def call_tool(name, args):
         # search silently answered from the lowest-numbered faculties only, and said nothing
         # about the rest. Now every faculty is scanned and the truncation is spelled out.
         cross = len(targets) > 1
+        coverage = {"faculties_requested": targets, "faculties_failed": failed,
+                    "complete": not failed, "scope": "course titles only"}
+        common = {"coverage": coverage, "akademskaGodina": year}
+        if failed:
+            common["warnings"] = ["Some faculties could not be read. Results are incomplete, not proof of absence."]
         if len(hits) > limit:
-            out = {"count": limit, "total_matches": len(hits), "courses": hits[:limit],
+            out = {**common, "count": limit, "total_matches": len(hits), "courses": hits[:limit],
                    "note": (f"Showing {limit} of {len(hits)} matches"
                             + (f" across {len(per_faculty)} faculties" if cross else "")
                             + ". Raise limit, narrow the query"
@@ -620,7 +773,7 @@ def call_tool(name, args):
             if cross:
                 out["matches_per_faculty"] = per_faculty
             return out
-        out = {"count": len(hits), "courses": hits}
+        out = {**common, "count": len(hits), "courses": hits}
         if cross:
             out["faculties_matched"] = len(per_faculty)
         return out
@@ -648,7 +801,7 @@ def call_tool(name, args):
             ects = float(f.get("ECTS bodovi", ""))
         except ValueError:
             ects = None
-        return {
+        record = {
             "faculty_id": fid, "sifra": code, "naziv": isvu.strip(h2[-1]) if h2 else None,
             "ects": ects, "opterecenje": f.get("Opterećenje"),
             "opis": f.get("Opis predmeta"),
@@ -663,6 +816,10 @@ def call_tool(name, args):
             "source": (f"{isvu.BASE}/podaci/{fid}/akademskagodina/{year}"
                        f"/predmeti/predmet/{code}"),
         }
+        if args.get("enrich", True):
+            from _sources import enrich_course
+            return enrich_course(record, isvu.fetch)
+        return record
 
     if name == "unizg_programmes":
         fid, err = resolve_faculty(args)
@@ -826,7 +983,7 @@ def handle_rpc(msg):
         return ok({
             "protocolVersion": params.get("protocolVersion", "2025-06-18"),
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "unizg-courses", "version": "1.0.0"},
+            "serverInfo": {"name": "unizg-courses", "version": "1.1.0"},
             "instructions": INSTRUCTIONS,
         })
     if method in ("notifications/initialized", "notifications/cancelled"):

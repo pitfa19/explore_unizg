@@ -4,8 +4,11 @@ These fixtures model the published ISVU directory and course HTML. Network I/O
 is replaced, not the public tool dispatcher or its parsing/search behavior.
 """
 import json
+import io
 import unittest
+from contextlib import redirect_stdout
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import _core
@@ -103,6 +106,42 @@ class DiscoveryContractTest(unittest.TestCase):
     def test_invalid_search_limit_is_rejected(self):
         result = self.call('unizg_courses', {'faculty': 'FER', 'limit': -1})
         self.assertIn('error', result)
+
+    def test_sources_use_live_roster_and_report_unmapped(self):
+        result = self.call('unizg_sources', {})
+        self.assertEqual(result['institution_roster'], 'live_isvu')
+        self.assertIn(1003, result['unmapped_faculty_ids'])
+        self.assertNotIn(331, result['unmapped_faculty_ids'])
+        pmf = self.call('unizg_sources', {'faculty': 'PMF'})
+        self.assertEqual(pmf['faculty_ids'], [37, 119])
+        self.assertEqual({i for s in pmf['sources'] for i in s['faculty_ids']}, {37, 119})
+
+    def test_bounded_content_discovery_through_public_dispatch(self):
+        result = self.call('unizg_discover', {'faculty_id': 37, 'query': 'syllabus',
+                                            'year': 2026, 'max_courses': 1})
+        self.assertEqual([c['sifra'] for c in result['courses']], ['33083'])
+        self.assertEqual(result['coverage']['examined_count'], 1)
+        self.assertEqual(result['courses'][0]['snippets'][0]['field'], 'opis')
+
+    def test_extreme_numeric_filter_is_validation_error(self):
+        result = self.call('unizg_discover', {'faculty_id': 37, 'query': 'x', 'ects_min': 10 ** 1000})
+        self.assertIn('error', result)
+        self.assertIn('finite', result['error'])
+        self.assertEqual(self.paths, [])
+
+    def test_cli_directory_includes_central_university(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            _core.isvu.cmd_institutions(SimpleNamespace(unizg=True, search=None))
+        self.assertIn(9996, {r['id'] for r in json.loads(output.getvalue())})
+
+    def test_cli_course_list_selects_the_same_current_year(self):
+        output = io.StringIO()
+        with patch.object(_core.isvu, 'current_academic_year', return_value=2026):
+            with redirect_stdout(output):
+                _core.isvu.cmd_courses(SimpleNamespace(inst=36, year=None, search='strojno', limit=10))
+        self.assertIn('/podaci/36/predmeti/akademskagodina/2026', self.paths)
+        self.assertEqual(json.loads(output.getvalue())['akademskaGodina'], 2026)
 
 
 class AcademicYearTest(unittest.TestCase):

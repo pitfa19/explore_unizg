@@ -77,7 +77,7 @@ def main():
 
     @check('year', 'Omitting year uses the current academic year')
     def current_year():
-        data = call('unizg_course', faculty='FER', code='222786', enrich=False)
+        data = call('unizg_course', faculty='FER', code='222786')
         assert data['akademskaGodina'] == year, data.get('akademskaGodina')
         return {'academic_year': data['akademskaGodina']}
 

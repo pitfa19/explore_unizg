@@ -7,6 +7,17 @@ index, search or aggregate by person. See SKILL.md.
 """
 import argparse, html, json, os, re, sys, threading, time, unicodedata, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
+
+
+def current_academic_year(today=None):
+    """Academic-year start, with the Croatian October boundary.
+
+    Explicit requested years remain authoritative. A date can be supplied for
+    deterministic boundary verification.
+    """
+    today = today or date.today()
+    return today.year if today.month >= 10 else today.year - 1
 
 BASE = "https://www.isvu.hr/visokaucilista/hr"
 PROJECT_URL = "https://github.com/pitfa19/explore_unizg"
@@ -30,6 +41,8 @@ _halted = [False]               # set once ISVU says 429; no thread starts a new
 
 class RateLimited(RuntimeError):
     """ISVU said 429. Raised, not sys.exit: a long-lived server must not kill itself."""
+
+    stop_fetching = True
 
 
 def _reserve():
@@ -222,7 +235,8 @@ def cmd_institutions(a):
             res.append({"id": int(idm.group(1)), "naziv": cells[0],
                         "nadredjena": cells[1], "grad": cells[2]})
     if a.unizg:
-        res = [x for x in res if "Sveučilište u Zagrebu" in x["nadredjena"]]
+        res = [x for x in res if x["id"] == 9996
+               or x["nadredjena"] == "Sveučilište u Zagrebu"]
     if a.search:
         q = fold(a.search)
         res = [x for x in res if q in fold(x["naziv"])]
@@ -259,18 +273,20 @@ def course_list(inst, year=None):
 
 
 def cmd_courses(a):
-    res = course_list(a.inst, a.year)
+    year = a.year if a.year is not None else current_academic_year()
+    res = course_list(a.inst, year)
     if a.search:
         q = fold(a.search)
         res = [c for c in res if q in fold(c["naziv"])]
     if a.limit:
         res = res[: a.limit]
-    print(json.dumps({"institution": a.inst, "count": len(res), "courses": res},
+    print(json.dumps({"institution": a.inst, "akademskaGodina": year,
+                      "count": len(res), "courses": res},
                      ensure_ascii=False, indent=2))
 
 
 def cmd_course(a):
-    year = a.year or 2025
+    year = a.year if a.year is not None else current_academic_year()
     doc = fetch(f"/podaci/{a.inst}/akademskagodina/{year}/predmeti/predmet/{a.code}")
     f = fields(doc)
     rec = {"institution": a.inst, "sifra": a.code, "akademskaGodina": year,
@@ -304,7 +320,7 @@ def cmd_course(a):
 
 
 def cmd_programmes(a):
-    year = a.year or 2025
+    year = a.year if a.year is not None else current_academic_year()
     levels = json.loads(fetch(f"/podaci/{a.inst}/dohvatirazine/{year}"))
     tree = []
     for lv in levels:
@@ -323,7 +339,7 @@ def cmd_programmes(a):
 
 
 def cmd_curriculum(a):
-    year = a.year or 2025
+    year = a.year if a.year is not None else current_academic_year()
     p = (f"/podaci/{a.inst}/nastavniprogram/{year}/razina/{a.razina}"
          f"/izvedba/{a.izvedba}/smjer/{a.smjer}")
     doc = fetch(p)
@@ -487,7 +503,7 @@ def cmd_dag(a):
     lists: only ~10% of courses declare an upis prerequisite. Absent is not the
     same as none, and this is exactly where faculty sites (PMF, PBF) add data.
     """
-    year = a.year or 2025
+    year = a.year if a.year is not None else current_academic_year()
     doc = fetch(f"/podaci/{a.inst}/nastavniprogram/{year}/razina/{a.razina}"
                 f"/izvedba/{a.izvedba}/smjer/{a.smjer}")
     seen, out = set(), []
