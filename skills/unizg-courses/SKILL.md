@@ -9,8 +9,8 @@ description: >-
   subject is taught at different UNIZG faculties. Also use for any question about studying at a
   second UNIZG faculty alongside your own: horizontalna mobilnost, taking or enrolling individual
   courses at another faculty, whether that is allowed and what the conditions are, how ECTS get
-  recognised, and how it differs from paralelni studij. Covers all 37 UNIZG constituents and ~27,400
-  courses. Croatian terms that should trigger this: kolegij, predmet, preduvjeti, ishodi ucenja,
+  recognised, and how it differs from paralelni studij. Discovers current UNIZG institutions and
+  their course catalogs, with additional official faculty-source routes. Croatian terms that should trigger this: kolegij, predmet, preduvjeti, ishodi ucenja,
   nastavni program, studijski program, ECTS, semestar, literatura, sastavnica, horizontalna
   mobilnost, paralelni studij, dva fakulteta, drugi faks, referada, molba, priznavanje ECTS-a.
 ---
@@ -35,6 +35,20 @@ teaching portfolio, rank or compare people, or collect contact details. **A name
 a course, never a row you can query.** If the user wants people-centric analysis, say that is out of
 scope here.
 
+## Retrieval order
+
+With the MCP server, start with `unizg_institutions` for the live roster. Use `unizg_courses`
+for title search or `unizg_discover` for bounded syllabus and learning-outcome search. The latter
+reports examined courses, failures and filter uncertainty, not a complete content index.
+Use `unizg_course` for detail: FER and FOI enrichment checks course identity and academic year.
+Use `unizg_sources` for official fallback routes and explicit unmapped coverage. A PDF route is
+not extracted PDF content. Keep recommended background separate from formal prerequisites.
+
+Without MCP, the script below queries ISVU only. Use `references/source-directory.md` to locate
+additional official sources manually. Missing ISVU data does not mean unpublished information.
+The default academic year changes on October 1. Pass `--year` explicitly for historical answers.
+PMF searches must cover both 37 and 119. Choose one ID for a single course or programme operation.
+
 ## Use the script
 
 `scripts/isvu.py` handles caching, the 3 req/s ceiling, 429 hard-stop, diacritic-insensitive search
@@ -43,7 +57,7 @@ and all the parsing traps below. Prefer it over hand-rolling requests.
 ```bash
 export ISVU_CONTACT="you@example.com"      # goes in the User-Agent; set it
 
-python3 scripts/isvu.py institutions --unizg          # 37 constituents + their ids
+python3 scripts/isvu.py institutions --unizg          # live constituent ids + central university
 python3 scripts/isvu.py courses 36 --search racunarstvo --limit 20
 python3 scripts/isvu.py course 119 63146              # detail: opis, literatura, preduvjeti, programmes
 python3 scripts/isvu.py programmes 54                 # programme/module tree
@@ -71,7 +85,7 @@ starting year of the academic year (2025 means 2025/2026).
 
 | Path | Returns |
 |---|---|
-| `/pretrazivanje` | all 125 institutions with ids |
+| `/pretrazivanje` | live institution directory with ids |
 | `/podaci/{inst}/predmeti` | full course list, one page, no pagination |
 | `/podaci/{inst}/predmeti/akademskagodina/{yyyy}` | same, chosen year (back to 1976) |
 | `/podaci/{inst}/akademskagodina/{yyyy}/predmeti/predmet/{code}` | course detail |
@@ -160,7 +174,8 @@ Never guess `semestar` to make a schedule look tighter: it changes the answer.
 
 ## Coverage honesty
 
-Measured over 370 sampled courses across all 37 constituents:
+The following figures are historical ISVU samples, not current university-wide publication claims.
+Measured over 370 sampled courses across the then-enumerated constituents:
 
 | field | coverage |
 |---|---|
@@ -171,14 +186,16 @@ Measured over 370 sampled courses across all 37 constituents:
 | preduvjeti za upis | 10% |
 | jezici izvođenja nastave | 12% |
 
-Ishodi učenja are **not a structured field**. Where present they are prose inside `Opis predmeta`
+Ishodi učenja are **not a structured ISVU field**. Where present they are prose inside `Opis predmeta`
 under institution-specific headings such as `OČEKIVANI ISHODI UČENJA NA RAZINI PREDMETA:` (PMF) while
 others write `Ciljevi kolegija` / `Sadržaj kolegija` and no outcomes at all. Extract by segmenting
 the description text.
 
 Coverage is bimodal, not evenly thin: FSB and PMF-matematički have ishodi on essentially every
-course, while Agronomski, FOI, MEF, Kineziološki, EFZG and Pravni have none. **When a field is
-missing, say the faculty did not publish it rather than implying the course lacks it.**
+course, while the sampled ISVU records for Agronomski, FOI, MEF, Kineziološki, EFZG and Pravni had none.
+**When a field is missing, say it was not returned by this source.** Check the official routes in
+`references/source-directory.md` before concluding that public information could not be found.
+FER and FOI faculty pages and Pravni outcome PDFs contain material absent from ISVU.
 
 ## Good questions this answers
 
@@ -187,7 +204,8 @@ missing, say the faculty did not publish it rather than implying the course lack
 - prerequisites, where the faculty published them
 - comparing how several faculties teach the same subject, since course lists span all constituents
 - **horizontalna mobilnost, both halves.** The catalog half: omit
-  `faculty_id` from `courses` to search all 37 constituents at once (one page per faculty, fetched
+  `faculty_id` from the MCP `unizg_courses` tool to search the live UNIZG institution roster, including
+  central institution 9996 (one page per institution, fetched
   concurrently, about 15 s), then read the syllabus, ECTS, workload and semester of anything promising.
   A truncated result reports `total_matches` and `matches_per_faculty`; pass those on rather than
   presenting the first page as the whole answer. The rules half is not in ISVU but it *is* settled, and
@@ -196,10 +214,9 @@ missing, say the faculty did not publish it rather than implying the course lack
   the Pravilnik o studiranju article 32, there is no grade-average requirement, failing costs nothing
   at the home faculty, and only the form, the fee, the deadline and course capacity are per-faculty.
   Do **not** answer as though it might not be permitted, and do **not** invent a fee or a deadline.
-  Do **not** offer to filter by language of instruction: `Jezici izvođenja nastave` is published for
-  ~12% of courses and marked English for ~1% (measured over 120 courses at 10 faculties), and it is
-  concentrated, VEF fills it on every course, most faculties on none. An absent value says nothing
-  about the actual teaching language.
+  For language of instruction, a missing ISVU value is unknown. Consult official annual English-course
+  lists through `unizg_sources` or `references/source-directory.md`. The historical ISVU language
+  sample was sparse; it did not establish whether the faculty publishes an English-offering list.
 - how a curriculum changed over time, since years go back to 1976/77 and 2026/2027 is already published
 - real cost of a course: `Opterećenje` gives the per-type hours, so hours-per-ECTS is computable and
   nobody else publishes it

@@ -1,7 +1,9 @@
 # UNIZG institutions in ISVU
 
-37 constituents have ISVU ids. Course counts are for ak. god. 2025/2026, measured 2026-07-29 from
-`/podaci/{id}/predmeti`. Total **27,408 courses**.
+Historical snapshot: course counts below are for ak. god. 2025/2026, measured 2026-07-29 from
+`/podaci/{id}/predmeti`, totaling **27,408 courses**. This is not the current institution roster.
+The October 2026 live directory also includes institution 1003 under UNIZG. Always enumerate live
+children plus central institution 9996 rather than treating this table as an exhaustive allowlist.
 
 Get this live with `python3 scripts/isvu.py institutions --unizg`.
 
@@ -51,13 +53,13 @@ Notes:
   when a user says "PMF", and label which one results came from.
 - **9996 is not an umbrella** over the others. It is the central/rectorate entity and its 472 courses
   are real, separate, mostly cross-faculty and interdisciplinary programmes.
-- **9950 Vojni studiji returns zero courses.** Skip it.
+- **9950 Vojni studiji returned zero courses in this snapshot.** Check the requested year before excluding it.
 - Three constituents are outside Zagreb, marked above.
 - In ISVU but **not** UNIZG, despite being in Zagreb: Hrvatsko katoličko sveučilište (331), Tehničko
-  veleučilište (246), Zdravstveno veleučilište (1003), Zagrebačka škola ekonomije i managementa (255),
+  veleučilište (246), Zagrebačka škola ekonomije i managementa (255),
   MUP-Veleučilište kriminalistike (200), Poslovno veleučilište (301), Veleučilište studija sigurnosti
   (257), Veleučilište suvremenih informacijskih tehnologija (297), Sveučilište obrane i sigurnosti (373).
-  Filter on `nadredjena == "Sveučilište u Zagrebu"`.
+  Filter on `nadredjena == "Sveučilište u Zagrebu"` **or** `id == 9996`, using the live response.
 
 ## Data coverage per faculty
 
@@ -107,13 +109,14 @@ prerequisites. Small n, so treat 0/10 and 10/10 as real signals and single-point
 | Protestantski | 251 | 0 | 0 | 8 | 0 | 2 |
 
 Things to remember when answering:
-- **MEF publishes no nositelj at all**, and Muzička akademija and Učiteljski nearly none.
+- The sampled MEF ISVU records had no nositelj, and Muzička akademija and Učiteljski nearly none.
 - **Arhitektonski has by far the best prerequisite data** in ISVU (8/12), enough to build a real DAG.
   Verified: its prijediplomski Arhitektura i urbanizam programme exports 69 courses with 58 carrying
   prerequisites, at exactly 30 ECTS per semester.
-- FER has good descriptions but zero ishodi and zero prerequisites in ISVU. FER publishes both,
-  plus competencies and publications, on its own site at `fer.unizg.hr/{ime}.{prezime}` and
-  `/predmet/{slug}`, which is outside this skill's scope for the people parts.
-- PMF and PBF publish prerequisites more completely on their own sites (`/predmet/{slug}`) than in ISVU.
+- Sampled FER ISVU records had descriptions but no separate outcomes or formal prerequisites.
+  Its `/predmet/{slug}` pages publish learning outcomes and recommended background. Background is
+  not automatically a formal enrollment requirement. The MCP enrichment keeps these separate.
+- Check official PMF and PBF sources when an ISVU field is absent. Do not assume those sources
+  are more complete for every course or year. See `source-directory.md` for mapped routes.
 - FBF showed semester data on only 3 of 10 sampled courses, an outlier worth double-checking before
   trusting FBF programme placement.

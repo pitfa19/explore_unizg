@@ -63,25 +63,28 @@ know what is actually in there.
 
 ### The tools
 
-Seven of them. Two things the six catalog ones share:
+Nine tools. Shared conventions:
 
 - **The faculty can be given as an id or as a name.** `36`, `FER`, `fakultet elektrotehnike` all work,
   and so do the other abbreviations people actually use (PMF, FSB, FFZG, FKIT, Arhitektonski). Ask
   `unizg_institutions` if you want the id.
-- **Everything accepts a year**, as the starting year: `2025` means 2025/2026. It goes back to
-  1976/77, and 2026/2027 is already published. Omit it and you get the current one.
+- **Course and programme lookups accept a year**, as the starting year: `2026` means 2026/2027.
+  Omit it for the current academic year, rolling over on October 1. An unavailable requested year
+  is not silently replaced by another one. Institution/source directories and mobility rules do
+  not take a year.
+- **PMF searches cover both divisions.** A single-course or single-programme lookup needs the
+  explicit ID, 37 or 119. Ambiguity is reported rather than silently choosing natural sciences.
 
 ---
 
 #### `unizg_institutions` — which faculties exist
 
-The 37 UNIZG constituents with their ISVU ids, their city, and how many courses each one has. Filter
-by a fragment of the name if you only want some. This is the lookup table behind everything else, and
-usually Claude calls it without being asked.
+The live UNIZG institution list, including the central university catalog, with ISVU ids and cities.
+Counts are not hard-coded. Filter by a name fragment. PMF has two separate IDs, 37 and 119.
 
 #### `unizg_courses` — find a course by name
 
-Searches course names at one faculty, or **across all 37 at once if you leave the faculty out**. That
+Searches course names at one faculty, or **across all discovered UNIZG entities if you leave the faculty out**. That
 second mode takes about fifteen seconds and is the honest way to answer *where else is this taught*.
 
 Search ignores diacritics, so `racunarstvo` finds `Računarstvo`. What comes back is a list of names
@@ -107,6 +110,35 @@ The detail page for a single course, which is where most of the interesting mate
   is a list and not a single value.
 
 > *What does Kvantna fizika at PMF cover, and what is the reading list?*
+
+By default, supported FER and FOI course pages add verified `ishodi_ucenja`, missing descriptions,
+and source metadata. Recommended background (`preporuceno_predznanje`) is kept separate from formal
+enrollment/exam prerequisites. Course identity and displayed year must match. Source failures leave
+the ISVU record intact with warnings. Pass `enrich: false` for an ISVU-only response.
+
+#### `unizg_sources`: where to look beyond ISVU
+
+Returns verified entry points for faculty course pages, learning-outcome PDFs, English-offering
+lists, mobility documents, academic calendars, and timetables. Filter by faculty and optionally
+`kind`; the response lists available kinds. Each route states its coverage, year handling, and
+verification date. Unmapped institutions remain explicit, not silently described as publishing
+nothing. A document link is not a claim that every PDF or timetable event has been extracted.
+
+#### `unizg_discover`: topics inside syllabi
+
+Searches titles, descriptions, and available learning outcomes, not teacher identities. This is
+bounded live discovery, **not an exhaustive university-wide index**. It does not automatically
+translate English queries into Croatian. Use the language of the source and narrow candidates:
+
+```json
+{"faculty":"FER","query":"grupiranje","candidate_query":"strojno","year":2026,"max_courses":12}
+```
+
+`candidate_query` filters titles before fetching details; `query` searches the fetched content.
+`max_courses` defaults to 30 and is capped at 100. Results report candidates, examined records,
+failures, missing filter values, and truncation. Optional filters are `ects_min`, `ects_max`,
+`semester`, `status`, and `language`. Semester/status must match the same programme placement.
+Missing language stays unknown; use official English-course lists from `unizg_sources` as well.
 
 #### `unizg_programmes` — what a faculty offers
 
@@ -178,13 +210,16 @@ it is just unreadable.
 ## Where the data comes from
 
 The [ISVU public catalog](https://www.isvu.hr/visokaucilista/hr/pocetna), the official system SRCE runs
-for the ministry: 37 faculties, about 27,400 courses, years back to 1976/77. It is read live, nothing is
-cached in this repository.
+for the ministry. Institutions are discovered live, including the central university's own courses.
+The July 2026 sample counted roughly 27,400 records for 2025/2026; that is not a current coverage
+promise. Data is fetched live with a local cache, not bundled as a complete dataset.
 
 Coverage is uneven because it is only as complete as each faculty made it. Semester and ECTS are almost
 always there. Descriptions cover under half of courses, learning outcomes a third, prerequisites about
-one in ten. **An empty field means the faculty published nothing, not that the course lacks the thing.**
-Per-faculty figures are in [`skills/unizg-courses/references/institutions.md`](skills/unizg-courses/references/institutions.md).
+one in ten in the historical ISVU sample. **An empty field means this source returned no value, not
+that the faculty publishes nothing or the course lacks the thing.** FER and FOI course pages can add
+verified detail. `unizg_sources` identifies further official documents and lists. Historical
+per-faculty figures remain in [`skills/unizg-courses/references/institutions.md`](skills/unizg-courses/references/institutions.md).
 
 The tools answer questions about teaching, not about people. Teacher names appear on course pages
 because the faculties publish them there, but there is deliberately no way to search or rank by
@@ -203,11 +238,29 @@ not what average they need. Most faculties publish none of this online — the U
 of every constituent's website says so — but a missing page is a fact about that website, not about the
 student's rights.
 
+## Verification and publishing
+
+Offline tests use public tool/module contracts with network fixtures. Live checks use the real
+HTTP handler and official sources, without importing implementation details into the verifier:
+
+```bash
+python3 -m unittest discover -s api -p 'test_*.py' -v
+python3 mcp/http_server.py 8901
+# In another terminal:
+python3 scripts/verify_discovery.py --endpoint http://127.0.0.1:8901/api/mcp
+python3 scripts/verify_discovery.py --endpoint https://horizontal-mobility.vercel.app/api/mcp
+```
+
+Use `--only tools,central,pmf` for targeted checks. Live checks are upstream-dependent and expose
+failures rather than declaring complete coverage. Fixture success does not replace a live run.
+Production follows the repository's `main` branch through the existing Vercel integration. Verify
+the GitHub deployment status and run the HTTP checks again after publishing.
+
 ## Also in here
 
-- [`skills/unizg-courses/`](skills/unizg-courses/): the same capability as an Agent Skill, plus
-  `scripts/isvu.py` which works as a standalone CLI. `SKILL.md` documents the endpoints and the parsing
-  traps.
+- [`skills/unizg-courses/`](skills/unizg-courses/): agent guidance and official source routes, plus
+  `scripts/isvu.py`, an ISVU-only standalone CLI. Automatic faculty enrichment and bounded content
+  discovery are MCP features. `SKILL.md` documents retrieval order, endpoints and parsing traps.
 - [`kolegiji_dag/`](kolegiji_dag/): a Python version of the scheduler, used to check the browser one.
 - [`docs/unizg-catalog-plan.md`](docs/unizg-catalog-plan.md): how the catalog was mapped, with measured
   coverage per faculty.
