@@ -45,10 +45,9 @@
 
   // Suptilna tinta zaglavlja stupca ovisno o dubini semestra.
   function semTint(t) {
-    const ink = [0x22, 0x1e, 0x18];
-    const sur = [0xf9, 0xf6, 0xf0];
-    const f = 0.06 + t * 0.3;
-    const c = ink.map((v, i) => Math.round(sur[i] * (1 - f) + v * f));
+    const pale = [0xf2, 0xf2, 0xf2];
+    const deep = [0xdc, 0xdc, 0xdc];
+    const c = pale.map((v, i) => Math.round(v * (1 - t) + deep[i] * t));
     return `rgb(${c[0]},${c[1]},${c[2]})`;
   }
 

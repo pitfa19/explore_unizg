@@ -61,6 +61,18 @@
     }
   }
 
+  function wireHeroAgents() {
+    document.querySelectorAll("[data-agent]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const tab = document.getElementById(button.getAttribute("data-agent"));
+        if (!tab) return;
+        selectTab(tab);
+        const install = document.getElementById("install");
+        if (install) install.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
   function wireTabs() {
     const tabs = [...document.querySelectorAll("[role='tab']")];
     tabs.forEach((tab, index) => {
@@ -401,6 +413,7 @@
   function boot() {
     wireCopy();
     wireTabs();
+    wireHeroAgents();
     const query = $("course-query");
     const faculty = facultySelect();
     if (query) query.addEventListener("input", runSearch);
