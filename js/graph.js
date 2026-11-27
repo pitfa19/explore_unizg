@@ -7,12 +7,17 @@
 
   // Geometrija (SVG korisničke jedinice; cijeli se SVG skalira preko CSS-a).
   const CARD_W = 188;
-  const CARD_H = 60;
   const COL_GAP = 92;
   const ROW_GAP = 30;
   const PAD_L = 28;
   const PAD_R = 28;
   const PAD_B = 22;
+  const CARD_PAD_X = 12;
+  const CARD_PAD_DRAG = 20;
+  const CARD_PAD_Y = 8;
+  const CARD_GAP = 3;
+  const CARD_BORDER = 1;
+  const MAX_TITLE_LINES = 2;
   const YEAR_TOP = 8;
   const YEAR_H = 18;
   const HEAD_TOP = YEAR_TOP + YEAR_H + 10; // = 36
@@ -58,6 +63,87 @@
     return { name, meta };
   }
 
+  // Širina naslova unutar kartice. Povlačive kartice imaju ručicu desno.
+  function nameInnerWidth(draggable) {
+    const padR = draggable ? CARD_PAD_DRAG : CARD_PAD_X;
+    return Math.max(48, CARD_W - CARD_BORDER * 2 - CARD_PAD_X - padR - 2);
+  }
+
+  let nameProbe = null;
+  let metaProbe = null;
+  let linePx = 16.25;
+  let metaPx = 12;
+
+  function resetProbes() {
+    if (nameProbe && nameProbe.parentNode) nameProbe.parentNode.remove();
+    nameProbe = null;
+    metaProbe = null;
+  }
+
+  function ensureProbes() {
+    if (nameProbe) return;
+    const host = document.createElement("div");
+    host.setAttribute("aria-hidden", "true");
+    host.style.cssText = "position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none;width:400px;";
+    nameProbe = document.createElement("div");
+    metaProbe = document.createElement("div");
+    // Ista tipografija kao .node__name / .node__meta, bez line-clampa, da scrollHeight
+    // kaže koliko redaka naslov stvarno zauzima.
+    nameProbe.style.cssText = "display:block;box-sizing:border-box;width:400px;font-family:var(--sans);font-weight:600;font-size:0.8125rem;line-height:1.25;overflow-wrap:break-word;white-space:normal;";
+    metaProbe.style.cssText = "display:block;box-sizing:border-box;width:400px;font-family:var(--mono);font-weight:400;font-size:0.625rem;line-height:1.2;white-space:nowrap;";
+    host.append(nameProbe, metaProbe);
+    document.body.appendChild(host);
+    nameProbe.textContent = "Mg";
+    linePx = nameProbe.getBoundingClientRect().height || linePx;
+    metaProbe.textContent = "FER · 1. · 5 ECTS · Z";
+    metaPx = metaProbe.getBoundingClientRect().height || metaPx;
+  }
+
+  function titleFits(text, width, weight) {
+    nameProbe.style.width = width + "px";
+    nameProbe.style.fontWeight = weight;
+    nameProbe.textContent = text;
+    return nameProbe.scrollHeight <= linePx * MAX_TITLE_LINES + 1;
+  }
+
+  // Naslov stane u najviše dva retka. Dulji se reže na granici riječi i dobije trotočku.
+  function measureTitle(text, width, weight) {
+    ensureProbes();
+    const raw = String(text || "").replace(/\s+/g, " ").trim();
+    if (!raw) return { text: "", lines: 1, truncated: false, nameHeight: linePx };
+    if (titleFits(raw, width, weight)) {
+      const lines = Math.max(1, Math.round(nameProbe.scrollHeight / linePx));
+      return { text: raw, lines: Math.min(lines, MAX_TITLE_LINES), truncated: false, nameHeight: nameProbe.scrollHeight };
+    }
+    let lo = 1;
+    let hi = raw.length;
+    let best = 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const candidate = raw.slice(0, mid).trimEnd() + "…";
+      if (titleFits(candidate, width, weight)) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    let cut = raw.slice(0, best).trimEnd();
+    const space = cut.lastIndexOf(" ");
+    if (space >= 8) {
+      const wordy = cut.slice(0, space).trimEnd();
+      if (wordy && titleFits(wordy + "…", width, weight)) cut = wordy;
+    }
+    const shown = cut + "…";
+    titleFits(shown, width, weight);
+    return { text: shown, lines: MAX_TITLE_LINES, truncated: true, nameHeight: nameProbe.scrollHeight };
+  }
+
+  function cardHeight(nameHeight) {
+    const nameH = Math.min(nameHeight || linePx, linePx * MAX_TITLE_LINES + 1);
+    return Math.ceil(CARD_PAD_Y * 2 + nameH + CARD_GAP + metaPx + CARD_BORDER * 2 + 2);
+  }
+
   // Vodoravni kubični brid (isto što i d3.linkHorizontal): kontrolne točke na pola puta.
   function linkPath(x0, y0, x1, y1) {
     const mx = (x0 + x1) / 2;
@@ -92,7 +178,7 @@
     mount.appendChild(box);
   }
 
-  function layout(schedule, courses, slots) {
+  function layout(schedule, courses, slots, dragIds) {
     const keyOf = (k) => PMF.schedule.courseKey(k);
     const bySem = new Map();
     for (const k of courses) {
@@ -107,7 +193,6 @@
     const labelOf = new Map(courses.map((k) => [keyOf(k), PMF.schedule.displayName(k, courses) || k.naziv]));
     const pos = {};
     const slotPos = [];
-    let maxRows = 0;
     const first = schedule.firstSemester || 1;
     const total = schedule.totalSemesters;
     const bySlot = new Map();
@@ -117,25 +202,41 @@
       if (!bySlot.has(sem)) bySlot.set(sem, []);
       bySlot.get(sem).push(slot);
     }
+    let bottom = NODES_TOP;
     for (let s = first; s <= total; s++) {
       const names = (bySem.get(s) || []).slice().sort((a, b) =>
         (labelOf.get(a) || a).localeCompare(labelOf.get(b) || b, "hr"));
       const here = bySlot.get(s) || [];
-      maxRows = Math.max(maxRows, names.length + here.length);
       const colX = colXof(s, first);
-      names.forEach((n, i) => {
-        const y = NODES_TOP + i * (CARD_H + ROW_GAP);
-        pos[n] = { x: colX, y, cy: y + CARD_H / 2, sem: s, status: statusOf.get(n) || "", ects: ectsOf.get(n) || 0 };
-      });
-      here.forEach((slot, i) => {
-        const y = NODES_TOP + (names.length + i) * (CARD_H + ROW_GAP);
-        slotPos.push({ slot, x: colX, y, sem: s });
-      });
+      let y = NODES_TOP;
+      for (const n of names) {
+        const drag = !!(dragIds && dragIds.has(n));
+        const full = labelOf.get(n) || n;
+        const measured = measureTitle(full, nameInnerWidth(drag), "600");
+        const h = cardHeight(measured.nameHeight);
+        pos[n] = {
+          x: colX, y, h, cy: y + h / 2, sem: s,
+          status: statusOf.get(n) || "", ects: ectsOf.get(n) || 0,
+          title: measured.text, full, truncated: measured.truncated,
+        };
+        y += h + ROW_GAP;
+      }
+      for (const slot of here) {
+        const text = slotText(slot);
+        const measured = measureTitle(text.name, nameInnerWidth(false), "500");
+        const h = cardHeight(measured.nameHeight);
+        slotPos.push({
+          slot, x: colX, y, h, cy: y + h / 2, sem: s,
+          title: measured.text, full: text.name, meta: text.meta, truncated: measured.truncated,
+        });
+        y += h + ROW_GAP;
+      }
+      if (names.length || here.length) bottom = Math.max(bottom, y);
     }
     const count = Math.max(0, total - first + 1);
     const width = count ? PAD_L + count * (CARD_W + COL_GAP) - COL_GAP + PAD_R : 320;
-    const height = maxRows
-      ? NODES_TOP + maxRows * (CARD_H + ROW_GAP) - ROW_GAP + PAD_B
+    const height = bottom > NODES_TOP
+      ? bottom - ROW_GAP + PAD_B
       : NODES_TOP + 28 + PAD_B;
     return { pos, width, height, total, first, slotPos };
   }
@@ -147,7 +248,10 @@
 
     const onPin = opts && opts.onPin;
     const unrecorded = new Set((opts && opts.unrecorded || []).map(Number));
-    const { pos, width, height, total, first, slotPos } = layout(schedule, courses, opts && opts.slots);
+    const keyOf = (k) => PMF.schedule.courseKey(k);
+    const noPrereq = new Set(courses.filter((k) => PMF.schedule.prereqNames(k).length === 0).map(keyOf));
+    const dragIds = onPin ? noPrereq : new Set();
+    const { pos, width, height, total, first, slotPos } = layout(schedule, courses, opts && opts.slots, dragIds);
 
     const svg = svgEl("svg", {
       class: "graph__svg",
@@ -227,8 +331,10 @@
     const slotEls = [];
     const edgeInfos = []; // { el, s, t }
     let pinned = null;
-    const maxPort = CARD_H / 2 - 8;
-    const clampPort = (v) => Math.max(-maxPort, Math.min(maxPort, v));
+    const clampPort = (v, h) => {
+      const maxPort = h / 2 - 8;
+      return Math.max(-maxPort, Math.min(maxPort, v));
+    };
 
     for (const e of schedule.edges) {
       const S = pos[e.source];
@@ -236,30 +342,30 @@
       if (!S || !T) continue;
       const outs = outIdx.get(e.source);
       const ins = inIdx.get(e.target);
-      const sPort = clampPort((outs.indexOf(e) - (outs.length - 1) / 2) * PORT_GAP);
-      const tPort = clampPort((ins.indexOf(e) - (ins.length - 1) / 2) * PORT_GAP);
+      const sPort = clampPort((outs.indexOf(e) - (outs.length - 1) / 2) * PORT_GAP, S.h);
+      const tPort = clampPort((ins.indexOf(e) - (ins.length - 1) / 2) * PORT_GAP, T.h);
       const d = linkPath(S.x + CARD_W, S.cy + sPort, T.x - 2.5, T.cy + tPort);
       const path = svgEl("path", { class: "edge", d, "marker-end": "url(#pmf-arrow)" });
       gEdges.appendChild(path);
       edgeInfos.push({ el: path, s: e.source, t: e.target });
     }
 
-    // koji kolegiji nemaju preduvjete (samo se oni mogu povlačiti)
-    const keyOf = (k) => PMF.schedule.courseKey(k);
-    const noPrereq = new Set(courses.filter((k) => PMF.schedule.prereqNames(k).length === 0).map(keyOf));
-
     // ── čvorovi (kartice) ──
     for (const k of courses) {
       const id = keyOf(k);
       const p = pos[id];
       if (!p) continue;
-      const fo = svgEl("foreignObject", { x: String(p.x), y: String(p.y), width: String(CARD_W), height: String(CARD_H) });
-      const draggable = onPin && noPrereq.has(id);
+      const fo = svgEl("foreignObject", { x: String(p.x), y: String(p.y), width: String(CARD_W), height: String(p.h) });
+      fo.style.overflow = "hidden";
+      const draggable = dragIds.has(id);
       const card = htmlEl("div", "node" + (p.status === "izborni" ? " node--izborni" : "") + (draggable ? " node--draggable" : ""));
       card.setAttribute("data-naziv", id);
-      if (draggable) card.setAttribute("title", "Povuci u kasniji semestar (ili natrag za automatski)");
+      const hint = "Povuci u kasniji semestar (ili natrag za automatski)";
+      if (draggable && p.truncated) card.setAttribute("title", `${p.full} — ${hint}`);
+      else if (draggable) card.setAttribute("title", hint);
+      else if (p.truncated) card.setAttribute("title", p.full);
       const name = htmlEl("span", "node__name");
-      name.textContent = PMF.schedule.displayName(k, courses) || k.naziv;
+      name.textContent = p.title;
       const meta = htmlEl("span", "node__meta");
       const metaBits = [];
       if (k.fakultet) metaBits.push(k.fakultet);
@@ -280,14 +386,14 @@
     for (const p of Object.values(pos)) occupied.add(p.sem);
     for (const sp of slotPos) {
       occupied.add(sp.sem);
-      const fo = svgEl("foreignObject", { x: String(sp.x), y: String(sp.y), width: String(CARD_W), height: String(CARD_H) });
+      const fo = svgEl("foreignObject", { x: String(sp.x), y: String(sp.y), width: String(CARD_W), height: String(sp.h) });
+      fo.style.overflow = "hidden";
       const card = htmlEl("div", "node node--slot");
-      const text = slotText(sp.slot);
-      card.setAttribute("title", "Popis kolegija u grupi");
+      card.setAttribute("title", sp.truncated ? `${sp.full} — Popis kolegija u grupi` : "Popis kolegija u grupi");
       const name = htmlEl("span", "node__name");
-      name.textContent = text.name;
+      name.textContent = sp.title;
       const meta = htmlEl("span", "node__meta");
-      meta.textContent = text.meta;
+      meta.textContent = sp.meta;
       card.append(name, meta);
       card._slot = sp.slot;
       fo.appendChild(card);
@@ -623,6 +729,12 @@
     view.addEventListener("touchcancel", () => { pinch = null; });
 
     fit();
+    if (document.fonts && document.fonts.status !== "loaded" && !(opts && opts._fontPass)) {
+      document.fonts.ready.then(() => {
+        resetProbes();
+        if (mount.isConnected) render(mount, schedule, courses, Object.assign({}, opts, { _fontPass: true }));
+      });
+    }
   }
 
   PMF.graph = { render };
