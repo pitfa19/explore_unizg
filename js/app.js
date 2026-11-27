@@ -2,7 +2,8 @@
 (function () {
   const PMF = (window.PMF = window.PMF || {});
 
-  const state = { courses: [] };
+  const state = { courses: [], droppedPrereqs: 0, frame: null };
+  const listeners = [];
 
   const $ = (id) => document.getElementById(id);
   let editorEl, graphEl, resultsEl, countEl;
@@ -20,16 +21,41 @@
     PMF.store.save(state.courses);
   }
 
+  function notify() {
+    for (const fn of listeners) {
+      try { fn(state.courses, state.droppedPrereqs); } catch (err) { /* slušatelj ne smije srušiti graf */ }
+    }
+  }
+
+  function relinkSelection() {
+    const linked = PMF.schedule.relink(state.courses);
+    state.courses = linked.courses;
+    state.droppedPrereqs = linked.dropped;
+  }
+
   function renderDerived() {
-    const schedule = PMF.schedule.computeSchedule(state.courses);
-    PMF.graph.render(graphEl, schedule, state.courses, { onPin });
+    const span = state.frame ? { from: state.frame.from, to: state.frame.to } : null;
+    const schedule = PMF.schedule.computeSchedule(state.courses, { span });
+    PMF.graph.render(graphEl, schedule, state.courses, {
+      onPin,
+      slots: state.frame ? state.frame.slots : [],
+      unrecorded: state.frame ? state.frame.unrecorded : [],
+    });
     PMF.results.render(resultsEl, schedule);
     if (countEl) countEl.textContent = String(state.courses.length);
+    const droppedEl = document.getElementById("dropped-prereqs");
+    if (droppedEl) {
+      droppedEl.hidden = !state.droppedPrereqs;
+      droppedEl.textContent = state.droppedPrereqs
+        ? `${state.droppedPrereqs} preduvjeta iz ISVU-a nije u odabiru, pa nisu nacrtani.`
+        : "";
+    }
+    notify();
   }
 
   // Fiksiraj kolegij (bez preduvjeta) u zadani semestar; sem == null => automatski (najraniji).
   function onPin(naziv, sem) {
-    const i = state.courses.findIndex((c) => c.naziv === naziv);
+    const i = state.courses.findIndex((c) => PMF.schedule.courseKey(c) === naziv);
     if (i < 0) return;
     if (sem == null) {
       const next = { ...state.courses[i] };
@@ -60,7 +86,11 @@
   const handlers = {
     // izmjena vrijednosti polja, ne rušimo uređivač (fokus ostaje)
     onValueEdit(i, patch) {
-      state.courses[i] = { ...state.courses[i], ...patch };
+      const next = { ...state.courses[i], ...patch };
+      if (state.courses[i].planSem && (patch.godina != null || patch.semestar)) {
+        next.planSem = PMF.schedule.nominalSemester(next);
+      }
+      state.courses[i] = next;
       save();
       scheduleDerived();
     },
@@ -84,13 +114,14 @@
     },
     removeCourse(i) {
       state.courses = state.courses.filter((_, idx) => idx !== i);
+      relinkSelection();
       save();
       rebuildEditor();
       renderDerived();
     },
     addPrereq(i) {
       const c = state.courses[i];
-      const options = state.courses.filter((_, idx) => idx !== i).map((x) => x.naziv).filter(Boolean);
+      const options = state.courses.filter((_, idx) => idx !== i).map((x) => PMF.schedule.courseKey(x)).filter(Boolean);
       const already = new Set((c.preduvjeti || []).map((p) => (typeof p === "string" ? p : p.kolegij)));
       const first = options.find((o) => !already.has(o)) || "";
       state.courses[i] = { ...c, preduvjeti: [...(c.preduvjeti || []), { kolegij: first, uvjet: "polozen" }] };
@@ -120,12 +151,14 @@
 
   // Zajednički put za uvoz iz datoteke i iz zalijepljenog teksta.
   function loadFromText(text) {
-    const list = PMF.store.normalizeImported(JSON.parse(text));
-    state.courses = list;
+    state.courses = PMF.store.normalizeImported(JSON.parse(text));
+    state.frame = null;
+    PMF.store.saveFrame(null);
+    relinkSelection();
     save();
     rebuildEditor({ resetOpen: true });
     renderDerived();
-    PMF.ui.toast(`Uvezeno ${list.length} kolegija.`, "success");
+    PMF.ui.toast(`Uvezeno ${state.courses.length} kolegija.`, "success");
   }
 
   async function doImport(file, inputEl) {
@@ -158,6 +191,7 @@
 
   function doReset() {
     state.courses = PMF.store.reset();
+    state.frame = null;
     rebuildEditor({ resetOpen: true });
     renderDerived();
     PMF.ui.toast("Vraćeno na zadani popis.", "info");
@@ -181,6 +215,32 @@
     $("btn-reset").addEventListener("click", doReset);
   }
 
+  function replaceCourses(list, message, frame) {
+    state.courses = list;
+    state.frame = frame || null;
+    PMF.store.saveFrame(state.frame);
+    relinkSelection();
+    save();
+    rebuildEditor({ resetOpen: true });
+    renderDerived();
+    if (message) PMF.ui.toast(message, "success");
+  }
+
+  function addCatalogCourse(course) {
+    const key = course.id || PMF.schedule.courseKey(course);
+    if (state.courses.some((c) => PMF.schedule.courseKey(c) === key)) {
+      PMF.ui.toast("Kolegij je već u odabiru.", "info");
+      return false;
+    }
+    state.courses = [...state.courses, course];
+    relinkSelection();
+    save();
+    rebuildEditor();
+    renderDerived();
+    PMF.ui.toast(`Dodano: ${course.naziv}`, "success");
+    return true;
+  }
+
   function boot() {
     editorEl = $("editor");
     graphEl = $("graph");
@@ -188,10 +248,21 @@
     countEl = $("course-count");
 
     state.courses = PMF.store.load();
+    state.frame = PMF.store.loadFrame();
+    relinkSelection();
     rebuildEditor();
     renderDerived();
     wireToolbar();
   }
+
+  PMF.app = {
+    getCourses() { return state.courses; },
+    getDropped() { return state.droppedPrereqs; },
+    subscribe(fn) { listeners.push(fn); fn(state.courses, state.droppedPrereqs); },
+    replaceCourses,
+    addCatalogCourse,
+    removeAt(index) { handlers.removeCourse(index); },
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

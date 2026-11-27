@@ -2,6 +2,7 @@
 (function () {
   const PMF = (window.PMF = window.PMF || {});
   const KEY = "kolegiji_v1";
+  const FRAME_KEY = "kolegiji_frame_v1";
 
   function clone(list) {
     return JSON.parse(JSON.stringify(list));
@@ -10,12 +11,12 @@
   function load() {
     try {
       const raw = window.localStorage.getItem(KEY);
-      if (!raw) return clone(PMF.data.DEFAULT_KOLEGIJI);
+      if (!raw) return [];
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return clone(PMF.data.DEFAULT_KOLEGIJI);
+      if (!Array.isArray(parsed)) return [];
       return parsed;
     } catch {
-      return clone(PMF.data.DEFAULT_KOLEGIJI);
+      return [];
     }
   }
 
@@ -30,10 +31,41 @@
   function reset() {
     try {
       window.localStorage.removeItem(KEY);
+      window.localStorage.removeItem(FRAME_KEY);
     } catch {
       // ignore
     }
     return clone(PMF.data.DEFAULT_KOLEGIJI);
+  }
+
+  function saveFrame(frame) {
+    try {
+      if (!frame) window.localStorage.removeItem(FRAME_KEY);
+      else window.localStorage.setItem(FRAME_KEY, JSON.stringify(frame));
+    } catch {
+      // localStorage nedostupan
+    }
+  }
+
+  function loadFrame() {
+    try {
+      const raw = window.localStorage.getItem(FRAME_KEY);
+      if (!raw) return null;
+      const frame = JSON.parse(raw);
+      const from = Number(frame && frame.from);
+      const to = Number(frame && frame.to);
+      if (!Number.isFinite(from) || !Number.isFinite(to) || from < 1 || to < from) return null;
+      return {
+        from,
+        to,
+        unrecorded: Array.isArray(frame.unrecorded)
+          ? frame.unrecorded.map(Number).filter((n) => Number.isFinite(n) && n >= 1)
+          : [],
+        slots: Array.isArray(frame.slots) ? frame.slots : [],
+      };
+    } catch {
+      return null;
+    }
   }
 
   // Osnovna validacija oblika uvezenih podataka.
@@ -71,9 +103,23 @@
       };
       const pin = Number(k.pin);
       if (Number.isFinite(pin) && pin >= 1) item.pin = pin;
+      const planSem = Number(k.planSem);
+      if (Number.isFinite(planSem) && planSem >= 1) item.planSem = Math.floor(planSem);
+      if (k.faculty_id != null && k.faculty_id !== "") item.faculty_id = Number(k.faculty_id);
+      if (k.sifra) item.sifra = String(k.sifra);
+      if (k.fakultet) item.fakultet = String(k.fakultet);
+      if (k.id) item.id = String(k.id);
+      else if (item.faculty_id && item.sifra) item.id = `${item.faculty_id}:${item.sifra}`;
+      if (Array.isArray(k.izvor_preduvjeti)) {
+        item.izvor_preduvjeti = k.izvor_preduvjeti.map((p) =>
+          typeof p === "string"
+            ? { kolegij: p, uvjet: "polozen" }
+            : { kolegij: String(p.kolegij || "").trim(), uvjet: p.uvjet === "odslusan" ? "odslusan" : "polozen" }
+        );
+      }
       return item;
     });
   }
 
-  PMF.store = { KEY, load, save, reset, normalizeImported };
+  PMF.store = { KEY, load, save, reset, normalizeImported, saveFrame, loadFrame };
 })();

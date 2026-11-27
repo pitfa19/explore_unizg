@@ -4,6 +4,10 @@
     "api/mcp.py": {
       "includeFiles": "skills/unizg-courses/scripts/isvu.py",
       "maxDuration": 300
+    },
+    "api/catalog.py": {
+      "includeFiles": "skills/unizg-courses/scripts/isvu.py",
+      "maxDuration": 300
     }
   }
 }

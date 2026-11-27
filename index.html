@@ -3,40 +3,206 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Raspored kolegija, Sveučilište u Zagrebu</title>
+    <title>explore_unizg, kolegiji Sveučilišta u Zagrebu</title>
     <meta
       name="description"
-      content="Prikaži kolegije kao graf preduvjeta i izračunaj najraniji mogući raspored za bilo koji studij Sveučilišta u Zagrebu. Radi u pregledniku, bez servera."
+      content="Pitaj agenta o kolegijima Sveučilišta u Zagrebu. Odgovori dolaze iz službenog ISVU kataloga i pravila horizontalne mobilnosti. Složi odabir i vidi preduvjete i ECTS."
+    />
+    <link rel="canonical" href="https://explore-unizg.vercel.app/" />
+    <meta name="theme-color" content="#f7f7f7" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Alumni+Sans:wght@200..800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
     />
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EDE8DE'/%3E%3Cpath d='M9 9h7M18 16h6' stroke='%23A8392B' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='9' r='3' fill='%23221E18'/%3E%3Ccircle cx='8' cy='23' r='3' fill='%23221E18'/%3E%3Ccircle cx='24' cy='16' r='3' fill='%23A8392B'/%3E%3Cpath d='M11 22l10-5' stroke='%23221E18' stroke-width='1.5'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f7f7f7'/%3E%3Cpath d='M9 9h7M18 16h6' stroke='%23c4922a' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='9' r='3' fill='%231c1c1c'/%3E%3Ccircle cx='8' cy='23' r='3' fill='%231c1c1c'/%3E%3Ccircle cx='24' cy='16' r='3' fill='%23c4922a'/%3E%3Cpath d='M11 22l10-5' stroke='%231c1c1c' stroke-width='1.5'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="masthead">
-      <div class="masthead__inner">
-        <div class="masthead__title">
-          <h1>Raspored kolegija</h1>
-          <p class="masthead__standfirst">
-            Preduvjeti i najraniji mogući raspored, bilo koji studij Sveučilišta u Zagrebu
-          </p>
-        </div>
-        <p class="masthead__lede">
-          Prikaži kolegije kao graf preduvjeta i izračunaj <em>najraniji mogući</em> raspored. Zadani
-          primjer je Molekularna biologija (PMF), uredi popis za bilo koji studij; sve se računa u
-          pregledniku, bez servera.
-        </p>
-      </div>
+    <header class="hero">
+      <p class="hero__kicker">Sveučilište u Zagrebu</p>
+      <h1 class="hero__title">Pitaj o kolegijima.</h1>
+      <p class="hero__lede">
+        Pitaj omiljenog agenta o kolegijima Sveučilišta u Zagrebu običnim jezikom. Odgovori dolaze iz
+        službenog ISVU kataloga i sveučilišnih pravila horizontalne mobilnosti, a ne iz pamćenja modela.
+      </p>
+      <ul class="hero__agents" aria-label="Agenti koji mogu dodati ovaj MCP">
+        <li><button type="button" data-agent="tab-claude">Claude</button></li>
+        <li><button type="button" data-agent="tab-code">Claude Code</button></li>
+        <li><button type="button" data-agent="tab-cursor">Cursor</button></li>
+        <li class="hero__agents-break" aria-hidden="true"></li>
+        <li><button type="button" data-agent="tab-chatgpt">ChatGPT</button></li>
+        <li><button type="button" data-agent="tab-codex">Codex</button></li>
+      </ul>
     </header>
 
+    <section class="install" id="install" aria-labelledby="install-heading">
+      <div class="step-head">
+        <span class="step-head__num">01</span>
+        <h2 id="install-heading">Dodaj MCP</h2>
+      </div>
+
+      <div class="cmdbar" data-copy-host>
+        <span class="cmdbar__prompt" aria-hidden="true">$</span>
+        <span class="led" aria-hidden="true"></span>
+        <code>https://explore-unizg.vercel.app/api/mcp</code>
+        <button class="cmdbar__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+      </div>
+
+      <div class="agent-tabs" role="tablist" aria-label="Agent">
+        <button class="agent-tabs__tab" type="button" role="tab" id="tab-claude" aria-selected="true" aria-controls="panel-claude" tabindex="0">Claude</button>
+        <button class="agent-tabs__tab" type="button" role="tab" id="tab-code" aria-selected="false" aria-controls="panel-code" tabindex="-1">Claude Code</button>
+        <button class="agent-tabs__tab" type="button" role="tab" id="tab-cursor" aria-selected="false" aria-controls="panel-cursor" tabindex="-1">Cursor</button>
+        <button class="agent-tabs__tab" type="button" role="tab" id="tab-chatgpt" aria-selected="false" aria-controls="panel-chatgpt" tabindex="-1">ChatGPT</button>
+        <button class="agent-tabs__tab" type="button" role="tab" id="tab-codex" aria-selected="false" aria-controls="panel-codex" tabindex="-1">Codex</button>
+      </div>
+
+      <div class="agent-panel is-on" role="tabpanel" id="panel-claude" aria-labelledby="tab-claude">
+        <ol>
+          <li>Customize, zatim Connectors.</li>
+          <li>Add custom connector i zalijepi adresu iz trake. Bez prijave.</li>
+        </ol>
+        <details class="alt">
+          <summary>Web, mobitel i Desktop dijele isti konektor</summary>
+          <p>Zahtjev ide s Anthropicovih poslužitelja, zato adresa mora biti javni HTTPS.</p>
+        </details>
+      </div>
+
+      <div class="agent-panel" role="tabpanel" id="panel-code" aria-labelledby="tab-code" hidden>
+        <p>U terminalu, iz mape projekta:</p>
+        <div class="snippet" data-copy-host>
+          <span class="cmdbar__prompt" aria-hidden="true">$</span>
+          <pre>claude mcp add --transport http unizg-courses https://explore-unizg.vercel.app/api/mcp</pre>
+          <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+        </div>
+        <details class="alt">
+          <summary>Ili datoteka .mcp.json</summary>
+          <p>Polje <span class="mono">type</span> mora biti <span class="mono">http</span>, inače Claude Code preskoči unos.</p>
+          <div class="snippet" data-copy-host>
+            <pre>{
+  "mcpServers": {
+    "unizg-courses": {
+      "type": "http",
+      "url": "https://explore-unizg.vercel.app/api/mcp"
+    }
+  }
+}</pre>
+            <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="agent-panel" role="tabpanel" id="panel-cursor" aria-labelledby="tab-cursor" hidden>
+        <p><span class="mono">~/.cursor/mcp.json</span> ili <span class="mono">.cursor/mcp.json</span>. Spremi i ponovno otvori Cursor.</p>
+        <div class="snippet" data-copy-host>
+          <pre>{
+  "mcpServers": {
+    "unizg-courses": {
+      "url": "https://explore-unizg.vercel.app/api/mcp"
+    }
+  }
+}</pre>
+          <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+        </div>
+      </div>
+
+      <div class="agent-panel" role="tabpanel" id="panel-chatgpt" aria-labelledby="tab-chatgpt" hidden>
+        <ol>
+          <li>U pregledniku: Plugins, pa Add custom MCP server. Ime: UNIZG. Bez prijave.</li>
+          <li>Uključi dodatak u novom razgovoru. Mobilna aplikacija ovo ne zna.</li>
+        </ol>
+        <details class="alt">
+          <summary>Koji planovi ovo imaju</summary>
+          <p>Business, Enterprise i Edu imaju puni pristup. Pro čita. Plus, Go i Free u OpenAI-jevoj dokumentaciji nisu zajamčeni.</p>
+        </details>
+      </div>
+
+      <div class="agent-panel" role="tabpanel" id="panel-codex" aria-labelledby="tab-codex" hidden>
+        <p>Iz terminala. Desktop, CLI i proširenje dijele istu datoteku.</p>
+        <div class="snippet" data-copy-host>
+          <span class="cmdbar__prompt" aria-hidden="true">$</span>
+          <pre>codex mcp add unizg-courses --url https://explore-unizg.vercel.app/api/mcp</pre>
+          <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+        </div>
+        <details class="alt">
+          <summary>Ili ~/.codex/config.toml</summary>
+          <div class="snippet" data-copy-host>
+            <pre>[mcp_servers.unizg-courses]
+url = "https://explore-unizg.vercel.app/api/mcp"</pre>
+            <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+          </div>
+        </details>
+      </div>
+
+      <p class="why">Zašto MCP, a ne vještina: podaci su živi, instalacija je jedna poveznica i radi u svakom agentu koji zna MCP.</p>
+      <p class="install__links">
+        <a href="https://github.com/pitfa19/explore_unizg">GitHub</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/pitfa19/explore_unizg/blob/main/LICENSE">MIT</a>
+      </p>
+    </section>
+
     <main class="layout">
+      <section class="playground" aria-labelledby="play-heading">
+        <div class="step-head">
+          <span class="step-head__num">02</span>
+          <h2 id="play-heading">Složi odabir</h2>
+        </div>
+        <p class="playground__lede">
+          Pretraži sve kolegije Sveučilišta. Detalji se povlače tek za one koje dodaš. Obavezne kolegije
+          studija možeš učitati odjednom, umjesto da lijepiš JSON.
+        </p>
+
+        <div class="playground__grid">
+          <div class="finder">
+            <div class="finder__controls">
+              <label class="field" for="course-query">
+                <span class="field__label">Naziv ili šifra</span>
+                <input id="course-query" type="search" placeholder="npr. racunarstvo" autocomplete="off" enterkeyhint="search" />
+              </label>
+              <label class="field" for="faculty-filter">
+                <span class="field__label">Sastavnica</span>
+                <select id="faculty-filter">
+                  <option value="">Sve sastavnice</option>
+                </select>
+              </label>
+            </div>
+            <p id="search-status" class="finder__status" role="status">Učitavam katalog…</p>
+            <ul id="search-results" class="finder__results"></ul>
+
+            <div class="programme">
+              <p class="field__label" id="programme-label">Studij</p>
+              <div class="programme__row">
+                <select id="programme-select" aria-labelledby="programme-label" disabled>
+                  <option value="">Odaberi sastavnicu, pa studij</option>
+                </select>
+                <button id="btn-load-programme" class="btn" type="button">Obavezni kolegiji studija</button>
+              </div>
+              <p id="programme-status" class="programme__status" role="status"></p>
+              <p class="programme__note">U odabir ulaze samo obavezni kolegiji. Izborne grupe stoje na grafu, isprekidano, po semestru.</p>
+              <p class="programme__report"><button type="button" class="report-link" id="report-programme">Prijavi grešku</button></p>
+            </div>
+          </div>
+
+          <aside class="tray-panel" aria-labelledby="tray-heading">
+            <h3 id="tray-heading" class="field__label">Odabir <span id="tray-count" class="count"></span></h3>
+            <ul id="tray" class="tray__list"></ul>
+            <p id="mobility-hint" class="mobility" hidden></p>
+          </aside>
+        </div>
+      </section>
+
       <section class="panel panel--stage" aria-labelledby="graph-heading">
         <h2 id="graph-heading" class="section__heading">Graf preduvjeta</h2>
         <p class="stage__hint">
-          Kolegije bez preduvjeta možeš povući <span aria-hidden="true">↔</span> u kasniji semestar; raspored se preračuna.
+          Preklapanja su preduvjeti i ECTS. Dodirni kolegij za detalje. Povuci graf u stranu ili stisni za zum.
+          Mišem, kolegij bez preduvjeta možeš povući <span aria-hidden="true">↔</span> u kasniji semestar.
         </p>
+        <p id="dropped-prereqs" class="stage__hint" hidden></p>
         <div id="graph" class="graph"></div>
       </section>
 
@@ -75,18 +241,21 @@
     <footer class="colophon">
       <p>
         Model rasporeda: svaki kolegij ide u prvi semestar nakon svih svojih preduvjeta
-        (izravnih i posrednih). Sezona (zimski/ljetni) služi samo kao oznaka.
+        (izravnih i posrednih), i to samo u svojoj sezoni. Izvor je javni ISVU katalog.
+        Repozitorij ne isporučuje skup podataka.
       </p>
+      <p class="colophon__report"><button type="button" class="report-link" id="report-footer">Prijavi grešku</button></p>
     </footer>
 
-    <!-- redoslijed = redoslijed ovisnosti (klasične skripte, bez modula) -->
     <script src="js/data.js"></script>
     <script src="js/schedule.js"></script>
     <script src="js/store.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/feedback.js"></script>
     <script src="js/graph.js"></script>
     <script src="js/editor.js"></script>
     <script src="js/results.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/playground.js"></script>
   </body>
 </html>

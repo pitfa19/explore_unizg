@@ -381,23 +381,28 @@ def _grouped_tables(chunk):
     for m in re.finditer(r"(?s)<b>\s*Izborna grupa:\s*</b>(.*?)(?:<br|</td)", chunk):
         head = chunk[max(0, m.start() - 260): m.start()]
         gid = re.findall(r"izb_predmeti(\d+)", head)
-        tail = chunk[m.end(): m.end() + 300]
+        tail = chunk[m.end(): m.end() + 400]
         mn = re.search(r"najmanje\s+([\d.]+)", tail)
+        opis_m = re.search(r"(?s)<b>\s*Opis:\s*</b>(.*?)</p>", tail)
         if gid:
             groups[gid[-1]] = {"naziv": strip(m.group(1)),
-                               "min_ects": float(mn.group(1)) if mn else None}
+                               "min_ects": float(mn.group(1)) if mn else None,
+                               "opis": strip(opis_m.group(1))[:240] if opis_m else None}
     out = []
     for tag, rows in tables(chunk, with_tag=True):
         keys = [h.strip() for h in rows[0]]
         if "Naziv" not in keys:
             continue
         gid = re.search(r'id="izb_predmeti(\d+)', tag)
-        grp = groups.get(gid.group(1), {"naziv": None, "min_ects": None}) if gid else None
+        grp = groups.get(gid.group(1), {"naziv": None, "min_ects": None, "opis": None}) if gid else None
         items = []
         for r in rows[1:]:
-            if len(r) != len(keys):
+            # Shorter rows are group banners and "nije evidentirano" notices.
+            # A few pages (Protestantska teologija) add a trailing hour cell
+            # the header does not name. The leading cells still line up.
+            if len(r) < len(keys):
                 continue
-            d = dict(zip(keys, r))
+            d = dict(zip(keys, r[:len(keys)]))
             items.append({"sifra": d.get("Šifra"), "naziv": d.get("Naziv"),
                           "ects": d.get("ECTS"), "polaze_se": d.get("Polaže se"),
                           "sati": {k: v for k, v in d.items()

@@ -20,7 +20,7 @@ Run it:
 python3 -m http.server 8000     # then open http://localhost:8000/
 ```
 
-The default list is Molekularna biologija at PMF. Edit it, or replace it with any programme.
+The page starts empty. Search the live catalog or load a whole programme, or choose **Vrati zadano** for the Molekularna biologija example at PMF.
 
 **Reading the graph.** One column per semester, grouped into years. An arrow means *prerequisite to
 course*. A course sits in the first semester that is both after all its prerequisites and in its own
@@ -42,8 +42,10 @@ official programme puts it, and a red arrow is the difference. The bars are ECTS
 **Claude web and mobile.** Settings, Connectors, Add custom connector, and paste:
 
 ```
-https://horizontal-mobility.vercel.app/api/mcp
+https://explore-unizg.vercel.app/api/mcp
 ```
+
+The same deployment also answers on `https://horizontal-mobility.vercel.app/api/mcp`.
 
 **Claude Desktop or Claude Code.** Run it locally instead, nothing to deploy:
 
@@ -248,7 +250,7 @@ python3 -m unittest discover -s api -p 'test_*.py' -v
 python3 mcp/http_server.py 8901
 # In another terminal:
 python3 scripts/verify_discovery.py --endpoint http://127.0.0.1:8901/api/mcp
-python3 scripts/verify_discovery.py --endpoint https://horizontal-mobility.vercel.app/api/mcp
+python3 scripts/verify_discovery.py --endpoint https://explore-unizg.vercel.app/api/mcp
 ```
 
 Use `--only tools,central,pmf` for targeted checks. Live checks are upstream-dependent and expose
