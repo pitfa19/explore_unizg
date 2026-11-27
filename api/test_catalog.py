@@ -6,6 +6,21 @@ import catalog
 
 
 class CatalogShapeTest(unittest.TestCase):
+    def test_select_curriculum_rows_drops_elective_groups(self):
+        grouped = [
+            (None, [{"sifra": "1", "naziv": "Matematika"}]),
+            ({"naziv": "Izborni predmeti", "min_ects": 4.0},
+             [{"sifra": "9", "naziv": "Izborni blok"}]),
+            ({"naziv": "Izborno obavezni predmeti", "min_ects": None},
+             [{"sifra": "8", "naziv": "Slot"}, {"sifra": "", "naziv": "Prazan slot"}]),
+        ]
+        rows, skipped = _core.select_curriculum_rows(grouped, only_obavezni=True)
+        self.assertEqual([it["sifra"] for _, it in rows], ["1"])
+        self.assertEqual(skipped, {"9", "8"})
+        all_rows, none_skipped = _core.select_curriculum_rows(grouped, only_obavezni=False)
+        self.assertEqual(len(all_rows), 4)
+        self.assertEqual(none_skipped, set())
+
     def test_fold_search_ignores_diacritics_and_faculty(self):
         courses = [
             {"faculty_id": 36, "sifra": "1", "naziv": "Računarstvo"},

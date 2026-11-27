@@ -327,7 +327,7 @@
     if (!courses.length) {
       const empty = document.createElement("li");
       empty.className = "tray__empty";
-      empty.textContent = "Još nema kolegija. Dodaj iz pretrage ili učitaj studij.";
+      empty.textContent = "Još nema kolegija. Dodaj iz pretrage ili učitaj obavezne kolegije studija.";
       list.appendChild(empty);
       return;
     }
@@ -432,7 +432,7 @@
       }
       select.disabled = false;
       select.value = "";
-      setProgrammeStatus(`${programmes.length} studija. Odaberi jedan i učitaj ga.`);
+      setProgrammeStatus(`${programmes.length} studija. Odaberi jedan i učitaj obavezne kolegije.`);
     } catch (err) {
       select.innerHTML = "";
       const option = document.createElement("option");
@@ -454,7 +454,7 @@
     if (!button || !select) return;
     if (button.classList.contains("is-loading")) return;
     if (!facultyId) {
-      nudgeField(faculty, "Prvo odaberi fakultet.");
+      nudgeField(faculty, "Prvo odaberi sastavnicu.");
       return;
     }
     settleField(faculty);
@@ -465,10 +465,10 @@
     }
     settleField(select);
     const current = PMF.app.getCourses();
-    if (current.length && !window.confirm("Učitavanje studija zamjenjuje trenutni odabir.")) return;
+    if (current.length && !window.confirm("Učitavanje obaveznih kolegija zamjenjuje trenutni odabir.")) return;
     button.classList.add("is-loading");
     button.setAttribute("aria-busy", "true");
-    setProgrammeStatus("Učitavam studij. Slažem graf čim stignu preduvjeti.", "busy");
+    setProgrammeStatus("Učitavam obavezne kolegije. Slažem graf čim stignu preduvjeti.", "busy");
     setGraphBusy(true);
     try {
       const params = new URLSearchParams({
@@ -482,9 +482,11 @@
       let data = {};
       try { data = await response.json(); } catch (err) { data = {}; }
       if (!response.ok || data.error) throw new Error(data.error || `Studij nije učitan (${response.status}).`);
-      const list = data.kolegiji || [];
-      if (!list.length) throw new Error("ISVU za ovaj studij nije vratio nijedan kolegij.");
-      const notes = [`Učitano ${list.length} kolegija.`];
+      const list = (data.kolegiji || []).filter((course) => course.status !== "izborni");
+      if (!list.length) throw new Error("ISVU za ovaj studij nije vratio obavezne kolegije.");
+      const skipped = Array.isArray(data.skipped_electives) ? data.skipped_electives.length : 0;
+      const notes = [`Učitano ${list.length} obaveznih kolegija.`];
+      if (skipped) notes.push(`Izborne grupe nisu uključene (${skipped}).`);
       if (data.merged_duplicates && data.merged_duplicates.length) {
         notes.push(`Spojeno dvostrukih naziva: ${data.merged_duplicates.length}.`);
       }
@@ -495,7 +497,7 @@
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       PMF.app.replaceCourses(list);
       setProgrammeStatus(notes.join(" "));
-      setStatus("Studij je u odabiru. Graf računa preduvjete i ECTS, ne satnicu.");
+      setStatus("Obavezni kolegiji su u odabiru. Graf računa preduvjete i ECTS, ne satnicu.");
       const graphHeading = document.getElementById("graph-heading");
       if (graphHeading) graphHeading.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {

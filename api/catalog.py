@@ -2,7 +2,7 @@
 
 GET /api/catalog?op=spine returns titles and codes for every discovered UNIZG
 faculty. Course pages are fetched only by op=course, and only for a selection.
-op=dag reuses unizg_dag_json for a whole programme.
+op=dag reuses unizg_dag_json for the obligatory courses of one programme.
 """
 import json
 import os
@@ -356,6 +356,7 @@ def programme_dag(args):
         "izvedba": str(args["izvedba"]),
         "smjer": int(args["smjer"]),
         "year": year,
+        "only_obavezni": True,
     })
     return stamp_programme(raw, institution_by_id(fid))
 

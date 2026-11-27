@@ -245,6 +245,10 @@ TOOLS = [
                     "With target: how many levels of prerequisites to follow. Omit for the full "
                     "chain; 1 gives only direct prerequisites.")},
                 "year": {"type": "integer"},
+                "only_obavezni": {"type": "boolean", "description": (
+                    "When true, export only obligatory courses. Elective groups, including "
+                    "izborno-obavezni blocks, are left out and listed in skipped_electives. "
+                    "Omit it for the whole programme.")},
             },
             "required": ["razina", "izvedba", "smjer"],
         },
@@ -524,6 +528,26 @@ def _prereqs_from(docs, course):
                 seen.add(sig)
                 out.append(pr)
     return out
+
+
+def select_curriculum_rows(grouped, only_obavezni=False):
+    """Rows for a programme DAG, plus elective codes left out of an obligatory load.
+
+    `grouped` is isvu._grouped_tables: (group, items). group is None on the
+    mandatory table and a dict on an Izborna grupa, including izborno-obavezni
+    blocks. Those group rows are a menu of choices, not courses everyone takes.
+    """
+    rows, elective_codes = [], set()
+    for grp, items in grouped:
+        if only_obavezni and grp:
+            for it in items:
+                code = it.get("sifra")
+                if code:
+                    elective_codes.add(code)
+            continue
+        for it in items:
+            rows.append((grp, it))
+    return rows, elective_codes
 
 
 def _walk_upstream(root, all_courses, max_depth=None):
@@ -871,26 +895,32 @@ def call_tool(name, args):
             return {"faculty_id": fid, "akademskaGodina": year, "smjer": args["smjer"],
                     "semestri": out, "source": isvu.BASE + path}
 
+        # only_obavezni is the playground's "Obavezni kolegiji" load. Elective
+        # groups, including izborno-obavezni blocks, are choices rather than
+        # courses everyone takes, so they never enter the list or the prereq fetch.
+        only_core = bool(args.get("only_obavezni"))
         seen, courses = set(), []
+        elective_codes = set()
         for sem, chunk in sems:
-            for grp, items in isvu._grouped_tables(chunk):
-                for it in items:
-                    if not it["sifra"] or it["sifra"] in seen:
-                        continue
-                    seen.add(it["sifra"])
-                    try:
-                        ects = float(it["ects"])
-                    except (TypeError, ValueError):
-                        ects = 0.0
-                    courses.append({"naziv": it["naziv"],
-                                    "sifra": it["sifra"],
-                                    "semestar": "zimski" if sem % 2 else "ljetni",
-                                    "godina": (sem + 1) // 2,
-                                    "status": "izborni" if grp else "obavezni",
-                                    "ects": ects,
-                                    "preduvjeti": [],
-                                    "_paths": [f"/podaci/{fid}/akademskagodina/{year}"
-                                               f"/predmeti/predmet/{it['sifra']}"]})
+            rows, skipped = select_curriculum_rows(isvu._grouped_tables(chunk), only_core)
+            elective_codes.update(skipped)
+            for grp, it in rows:
+                if not it["sifra"] or it["sifra"] in seen:
+                    continue
+                seen.add(it["sifra"])
+                try:
+                    ects = float(it["ects"])
+                except (TypeError, ValueError):
+                    ects = 0.0
+                courses.append({"naziv": it["naziv"],
+                                "sifra": it["sifra"],
+                                "semestar": "zimski" if sem % 2 else "ljetni",
+                                "godina": (sem + 1) // 2,
+                                "status": "izborni" if grp else "obavezni",
+                                "ects": ects,
+                                "preduvjeti": [],
+                                "_paths": [f"/podaci/{fid}/akademskagodina/{year}"
+                                           f"/predmeti/predmet/{it['sifra']}"]})
 
         # Merge before anything else looks at the list. A year-long course appears as a 0 ECTS
         # placeholder row and a credit-bearing row, and resolving `target` against the raw list
@@ -942,7 +972,8 @@ def call_tool(name, args):
                            "reads the kolegiji key and ignores the rest. Do not rewrite, reorder "
                            "or summarise the course objects; the app validates them strictly."),
             "summary": {
-                "scope": f"prerequisite chain for {target!r}" if target else "whole programme",
+                "scope": (f"prerequisite chain for {target!r}" if target
+                          else "obligatory courses" if only_core else "whole programme"),
                 "courses": len(courses),
                 "with_prerequisites": len(courses) - missing,
                 "without_prerequisites": missing,
@@ -953,6 +984,10 @@ def call_tool(name, args):
             },
             "merged_duplicates": merged,
             "dropped_prerequisites": dropped,
+            # Present only for the obligatory-only export. Codes that also appear
+            # as a mandatory row are not listed: the core row is the one kept.
+            **({"skipped_electives": sorted(elective_codes - {c["sifra"] for c in courses})}
+               if only_core else {}),
             "caveat": ("An empty preduvjeti list means the faculty published nothing, not that the "
                        "course has no prerequisites. For a whole programme, ECTS per semester "
                        "should land near 30; for a target chain it will not, because the chain is "

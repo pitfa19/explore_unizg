@@ -54,7 +54,7 @@
   function renderEmpty(mount) {
     const box = document.createElement("div");
     box.className = "graph__note";
-    box.textContent = "Nema kolegija za prikaz. Pretraži katalog i dodaj kolegij, ili učitaj studij.";
+    box.textContent = "Nema kolegija za prikaz. Pretraži katalog i dodaj kolegij, ili učitaj obavezne kolegije studija.";
     mount.appendChild(box);
   }
 

@@ -153,8 +153,8 @@ url = "https://explore-unizg.vercel.app/api/mcp"</pre>
           <h2 id="play-heading">Složi odabir</h2>
         </div>
         <p class="playground__lede">
-          Pretraži sve kolegije Sveučilišta. Detalji se povlače tek za one koje dodaš. Cijeli studij možeš
-          učitati odjednom, umjesto da lijepiš JSON.
+          Pretraži sve kolegije Sveučilišta. Detalji se povlače tek za one koje dodaš. Obavezne kolegije
+          studija možeš učitati odjednom, umjesto da lijepiš JSON.
         </p>
 
         <div class="playground__grid">
@@ -175,15 +175,15 @@ url = "https://explore-unizg.vercel.app/api/mcp"</pre>
             <ul id="search-results" class="finder__results"></ul>
 
             <div class="programme">
-              <p class="field__label" id="programme-label">Cijeli studij</p>
+              <p class="field__label" id="programme-label">Studij</p>
               <div class="programme__row">
                 <select id="programme-select" aria-labelledby="programme-label" disabled>
                   <option value="">Odaberi sastavnicu, pa studij</option>
                 </select>
-                <button id="btn-load-programme" class="btn" type="button">Učitaj cijeli studij</button>
+                <button id="btn-load-programme" class="btn" type="button">Obavezni kolegiji studija</button>
               </div>
               <p id="programme-status" class="programme__status" role="status"></p>
-              <p class="programme__note">Cijeli studij zna biti pregust graf. Za lanac jednog kolegija pitaj agenta.</p>
+              <p class="programme__note">Samo obavezni kolegiji. Izborne grupe i izborni blokovi nisu uključeni.</p>
             </div>
           </div>
 
