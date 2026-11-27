@@ -154,6 +154,15 @@
     });
 
     body.appendChild(pre);
+    body.appendChild(PMF.feedback.link({
+      section: "course",
+      course: {
+        id: c.id || PMF.schedule.courseKey(c),
+        naziv: c.naziv || "",
+        sifra: c.sifra || "",
+        fakultet: c.fakultet || "",
+      },
+    }));
     details.appendChild(body);
 
     details.addEventListener("toggle", () => {

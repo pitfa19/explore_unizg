@@ -580,12 +580,20 @@
       if (slot.opis && !text.meta.includes(slot.opis)) bits.push(slot.opis);
       meta.textContent = bits.join(" · ");
       detail.append(title, meta);
+      const reportSlot = () => {
+        if (!PMF.feedback) return;
+        detail.appendChild(PMF.feedback.link({
+          section: "graph",
+          course: { grupa: text.name, semestar: Number(slot.semestar) || null },
+        }));
+      };
       const options = slot.predmeti || [];
       if (!options.length) {
         const pre = document.createElement("p");
         pre.className = "graph__detail-pre";
         pre.textContent = "ISVU u ovoj grupi nije naveo kolegije.";
         detail.appendChild(pre);
+        reportSlot();
         return;
       }
       const list = document.createElement("ul");
@@ -597,6 +605,7 @@
         list.appendChild(li);
       }
       detail.appendChild(list);
+      reportSlot();
     };
 
     const showDetail = (card) => {
@@ -631,6 +640,17 @@
         ? `Preduvjeti: ${names.join(", ")}`
         : "ISVU za ovaj kolegij nije objavio preduvjete za upis.";
       detail.append(title, meta, pre);
+      if (PMF.feedback) {
+        detail.appendChild(PMF.feedback.link({
+          section: "graph",
+          course: {
+            id: course.id || id,
+            naziv: course.naziv || "",
+            sifra: course.sifra || "",
+            fakultet: course.fakultet || "",
+          },
+        }));
+      }
     };
 
     let gesture = null;
