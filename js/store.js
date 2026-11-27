@@ -10,12 +10,12 @@
   function load() {
     try {
       const raw = window.localStorage.getItem(KEY);
-      if (!raw) return clone(PMF.data.DEFAULT_KOLEGIJI);
+      if (!raw) return [];
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return clone(PMF.data.DEFAULT_KOLEGIJI);
+      if (!Array.isArray(parsed)) return [];
       return parsed;
     } catch {
-      return clone(PMF.data.DEFAULT_KOLEGIJI);
+      return [];
     }
   }
 
@@ -71,6 +71,18 @@
       };
       const pin = Number(k.pin);
       if (Number.isFinite(pin) && pin >= 1) item.pin = pin;
+      if (k.faculty_id != null && k.faculty_id !== "") item.faculty_id = Number(k.faculty_id);
+      if (k.sifra) item.sifra = String(k.sifra);
+      if (k.fakultet) item.fakultet = String(k.fakultet);
+      if (k.id) item.id = String(k.id);
+      else if (item.faculty_id && item.sifra) item.id = `${item.faculty_id}:${item.sifra}`;
+      if (Array.isArray(k.izvor_preduvjeti)) {
+        item.izvor_preduvjeti = k.izvor_preduvjeti.map((p) =>
+          typeof p === "string"
+            ? { kolegij: p, uvjet: "polozen" }
+            : { kolegij: String(p.kolegij || "").trim(), uvjet: p.uvjet === "odslusan" ? "odslusan" : "polozen" }
+        );
+      }
       return item;
     });
   }

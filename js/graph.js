@@ -55,7 +55,7 @@
   function renderEmpty(mount) {
     const box = document.createElement("div");
     box.className = "graph__note";
-    box.textContent = "Nema kolegija za prikaz. Dodaj kolegij u uređivaču.";
+    box.textContent = "Nema kolegija za prikaz. Pretraži katalog i dodaj kolegij, ili učitaj studij.";
     mount.appendChild(box);
   }
 
@@ -73,20 +73,24 @@
   }
 
   function layout(schedule, courses) {
+    const keyOf = (k) => PMF.schedule.courseKey(k);
     const bySem = new Map();
     for (const k of courses) {
-      const s = schedule.earliest.get(k.naziv);
+      const id = keyOf(k);
+      const s = schedule.earliest.get(id);
       if (!bySem.has(s)) bySem.set(s, []);
-      bySem.get(s).push(k.naziv);
+      bySem.get(s).push(id);
     }
-    const statusOf = new Map(courses.map((k) => [k.naziv, k.status || ""]));
-    const ectsOf = new Map(courses.map((k) => [k.naziv, Number(k.ects) || 0]));
+    const statusOf = new Map(courses.map((k) => [keyOf(k), k.status || ""]));
+    const ectsOf = new Map(courses.map((k) => [keyOf(k), Number(k.ects) || 0]));
 
+    const labelOf = new Map(courses.map((k) => [keyOf(k), PMF.schedule.displayName(k, courses) || k.naziv]));
     const pos = {};
     let maxRows = 0;
     const total = schedule.totalSemesters;
     for (let s = 1; s <= total; s++) {
-      const names = (bySem.get(s) || []).slice().sort((a, b) => a.localeCompare(b, "hr"));
+      const names = (bySem.get(s) || []).slice().sort((a, b) =>
+        (labelOf.get(a) || a).localeCompare(labelOf.get(b) || b, "hr"));
       maxRows = Math.max(maxRows, names.length);
       const colX = colXof(s);
       names.forEach((n, i) => {
@@ -201,28 +205,33 @@
     }
 
     // koji kolegiji nemaju preduvjete (samo se oni mogu povlačiti)
-    const noPrereq = new Set(courses.filter((k) => PMF.schedule.prereqNames(k).length === 0).map((k) => k.naziv));
+    const keyOf = (k) => PMF.schedule.courseKey(k);
+    const noPrereq = new Set(courses.filter((k) => PMF.schedule.prereqNames(k).length === 0).map(keyOf));
 
     // ── čvorovi (kartice) ──
     for (const k of courses) {
-      const p = pos[k.naziv];
+      const id = keyOf(k);
+      const p = pos[id];
       if (!p) continue;
       const fo = svgEl("foreignObject", { x: String(p.x), y: String(p.y), width: String(CARD_W), height: String(CARD_H) });
-      const draggable = onPin && noPrereq.has(k.naziv);
+      const draggable = onPin && noPrereq.has(id);
       const card = htmlEl("div", "node" + (p.status === "izborni" ? " node--izborni" : "") + (draggable ? " node--draggable" : ""));
-      card.setAttribute("data-naziv", k.naziv);
+      card.setAttribute("data-naziv", id);
       if (draggable) card.setAttribute("title", "Povuci u kasniji semestar (ili natrag za automatski)");
       const name = htmlEl("span", "node__name");
-      name.textContent = k.naziv;
+      name.textContent = PMF.schedule.displayName(k, courses) || k.naziv;
       const meta = htmlEl("span", "node__meta");
-      meta.textContent = `${p.sem}. · ${p.ects} ECTS · ${parityTag(p.sem)}`;
+      const metaBits = [];
+      if (k.fakultet) metaBits.push(k.fakultet);
+      metaBits.push(`${p.sem}.`, `${p.ects} ECTS`, parityTag(p.sem));
+      meta.textContent = metaBits.join(" · ");
       card.append(name, meta);
       fo.appendChild(card);
       gNodes.appendChild(fo);
-      nodeEls.set(k.naziv, card);
+      nodeEls.set(id, card);
 
-      card.addEventListener("mouseenter", () => setHot(k.naziv, true));
-      card.addEventListener("mouseleave", () => setHot(k.naziv, false));
+      card.addEventListener("mouseenter", () => setHot(id, true));
+      card.addEventListener("mouseleave", () => setHot(id, false));
       if (draggable) enableDrag(fo, card, k, p);
     }
 
@@ -235,8 +244,18 @@
         return;
       }
       // Ističemo samo preduvjete (uzvodni lanac), ne i kolegije koji ovise o ovome (nizvodno).
+      // Bridovi su već razriješeni na id, pa lanac čitamo iz njih, a ne iz sirovih imena.
       const chain = new Set([naziv]);
-      PMF.schedule.ancestorsOf(naziv, courses).forEach((n) => chain.add(n));
+      const pending = [naziv];
+      while (pending.length) {
+        const cur = pending.pop();
+        for (const edge of schedule.edges) {
+          if (edge.target === cur && !chain.has(edge.source)) {
+            chain.add(edge.source);
+            pending.push(edge.source);
+          }
+        }
+      }
       svg.classList.add("has-hover");
       for (const [n, el] of nodeEls) {
         const inChain = chain.has(n);
@@ -324,7 +343,7 @@
         const sc = svgScale();
         const nx = p.x + (ev.clientX - startX) * sc;
         const target = nearestColumn(nx + CARD_W / 2, cols);
-        onPin(course.naziv, target.sem <= base ? null : target.sem);
+        onPin(PMF.schedule.courseKey(course), target.sem <= base ? null : target.sem);
       };
       card.addEventListener("pointerup", end);
       card.addEventListener("pointercancel", end);

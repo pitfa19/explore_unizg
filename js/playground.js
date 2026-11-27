@@ -1,0 +1,426 @@
+// Instalacija MCP-a i graditelj odabira. Katalog dolazi s /api/catalog;
+// stranica kolegija se traži tek kad se kolegij doda.
+(function () {
+  const PMF = (window.PMF = window.PMF || {});
+
+  const $ = (id) => document.getElementById(id);
+  let spine = null;
+  let searchTimer = 0;
+  let searchSeq = 0;
+
+  function fold(value) {
+    return PMF.schedule.fold(value);
+  }
+
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    const label = button.dataset.label || button.textContent;
+    button.dataset.label = label;
+    button.textContent = "✓";
+    button.classList.add("is-done");
+    button.setAttribute("aria-label", "Kopirano");
+    clearTimeout(button._copyTimer);
+    button._copyTimer = setTimeout(() => {
+      button.textContent = label;
+      button.classList.remove("is-done");
+      button.removeAttribute("aria-label");
+    }, 1600);
+  }
+
+  function wireCopy() {
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-copy-btn]");
+      if (!button) return;
+      const host = button.closest("[data-copy-host]");
+      const node = host && host.querySelector("code, pre");
+      const text = node ? node.innerText.trim() : "";
+      if (text) copyText(text, button);
+    });
+  }
+
+  function selectTab(tab) {
+    const tabs = [...document.querySelectorAll("[role='tab']")];
+    for (const item of tabs) {
+      const on = item === tab;
+      item.setAttribute("aria-selected", on ? "true" : "false");
+      item.tabIndex = on ? 0 : -1;
+      const panel = document.getElementById(item.getAttribute("aria-controls"));
+      if (panel) panel.hidden = !on;
+    }
+  }
+
+  function wireTabs() {
+    const tabs = [...document.querySelectorAll("[role='tab']")];
+    tabs.forEach((tab, index) => {
+      tab.addEventListener("click", () => selectTab(tab));
+      tab.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+        event.preventDefault();
+        const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
+        tabs[next].focus();
+        selectTab(tabs[next]);
+      });
+    });
+  }
+
+  function setStatus(text) {
+    const el = $("search-status");
+    if (el) el.textContent = text || "";
+  }
+
+  function facultySelect() {
+    return $("faculty-filter");
+  }
+
+  function fillFaculties(institutions) {
+    const select = facultySelect();
+    if (!select || select.dataset.ready === "1") return;
+    const current = select.value;
+    select.innerHTML = "";
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = "Sve sastavnice";
+    select.appendChild(all);
+    for (const inst of institutions || []) {
+      const option = document.createElement("option");
+      option.value = String(inst.id);
+      option.textContent = inst.grad && inst.grad !== "Zagreb" ? `${inst.naziv} (${inst.grad})` : inst.naziv;
+      select.appendChild(option);
+    }
+    select.value = current;
+    select.dataset.ready = "1";
+  }
+
+  function filterLocal(courses, query, facultyId) {
+    const needle = fold(query);
+    return courses.filter((course) => {
+      if (facultyId && String(course.faculty_id) !== String(facultyId)) return false;
+      if (!needle) return true;
+      return fold(course.naziv).includes(needle) || fold(course.sifra).includes(needle);
+    });
+  }
+
+  function facultyLabel(id) {
+    const select = facultySelect();
+    if (!select) return String(id);
+    const option = [...select.options].find((item) => item.value === String(id));
+    if (!option || !option.value) return String(id);
+    const inst = (spine && spine.institutions || []).find((item) => String(item.id) === String(id));
+    return (inst && inst.kratko) || option.textContent;
+  }
+
+  function renderHits(hits, total, query, facultyId) {
+    const list = $("search-results");
+    if (!list) return;
+    list.innerHTML = "";
+    const needle = fold(query);
+    if (!spine && needle.length < 2) {
+      setStatus("Učitavam katalog. Možeš već tražiti: upiši barem dva slova.");
+      return;
+    }
+    if (spine && !needle && !facultyId) {
+      const failed = (spine.coverage && spine.coverage.faculties_failed) || [];
+      const gap = failed.length ? ` ${failed.length} sastavnica nije pročitana.` : "";
+      setStatus(spine.count
+        ? `Katalog ima ${spine.count} kolegija.${gap} Upiši naziv ili odaberi sastavnicu.`
+        : "Katalog je prazan.");
+      return;
+    }
+    if (!hits.length) {
+      setStatus("Nema pogodaka. Pretraga je bez dijakritika.");
+      return;
+    }
+    const shown = hits.slice(0, 40);
+    setStatus(total > shown.length
+      ? `Prikazano ${shown.length} od ${total} pogodaka. Suži upit ili odaberi sastavnicu.`
+      : `${total} ${total === 1 ? "pogodak" : "pogodaka"}.`);
+    for (const course of shown) {
+      const item = document.createElement("li");
+      item.className = "hit";
+      const text = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "hit__name";
+      name.textContent = course.naziv;
+      const meta = document.createElement("div");
+      meta.className = "hit__meta mono";
+      meta.textContent = `${facultyLabel(course.faculty_id)} · ${course.sifra}`;
+      text.append(name, meta);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn--ghost";
+      button.textContent = "Dodaj";
+      button.addEventListener("click", () => addHit(course, button));
+      item.append(text, button);
+      list.appendChild(item);
+    }
+  }
+
+  async function addHit(course, button) {
+    button.disabled = true;
+    const previous = button.textContent;
+    button.textContent = "…";
+    try {
+      const params = new URLSearchParams({
+        op: "course",
+        faculty_id: String(course.faculty_id),
+        code: String(course.sifra),
+      });
+      const response = await fetch(`/api/catalog?${params}`);
+      const detail = await response.json();
+      if (!response.ok || detail.error) throw new Error(detail.error || "ISVU nije vratio kolegij.");
+      const added = PMF.app.addCatalogCourse(detail);
+      if (added && detail.napomena) PMF.ui.toast(detail.napomena, "info");
+    } catch (err) {
+      PMF.ui.toast(`Nisam dodao kolegij: ${err.message}`, "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = previous;
+    }
+  }
+
+  async function serverSearch(query, facultyId, seq) {
+    const params = new URLSearchParams({ op: "search", q: query });
+    if (facultyId) params.set("faculty_id", facultyId);
+    setStatus("Tražim u katalogu…");
+    try {
+      const response = await fetch(`/api/catalog?${params}`);
+      const data = await response.json();
+      if (seq !== searchSeq || spine) return;
+      if (!response.ok || data.error) throw new Error(data.error || "Pretraga nije uspjela.");
+      renderHits(data.courses || [], data.total_matches || 0, query, facultyId);
+    } catch (err) {
+      if (seq === searchSeq) setStatus(err.message);
+    }
+  }
+
+  function runSearch() {
+    const query = $("course-query").value.trim();
+    const facultyId = facultySelect().value;
+    if (spine) {
+      const needle = fold(query);
+      const hits = filterLocal(spine.courses, query, facultyId);
+      hits.sort((a, b) => {
+        const left = fold(a.naziv);
+        const right = fold(b.naziv);
+        const rank = (name) => (needle && name.startsWith(needle) ? 0 : 1);
+        return rank(left) - rank(right) || left.localeCompare(right, "hr");
+      });
+      renderHits(hits, hits.length, query, facultyId);
+      return;
+    }
+    if (fold(query).length < 2) {
+      renderHits([], 0, query, facultyId);
+      return;
+    }
+    const seq = ++searchSeq;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => serverSearch(query, facultyId, seq), 280);
+  }
+
+  function renderTray(courses) {
+    const list = $("tray");
+    const count = $("tray-count");
+    if (count) count.textContent = courses.length ? `(${courses.length})` : "";
+    if (!list) return;
+    list.innerHTML = "";
+    if (!courses.length) {
+      const empty = document.createElement("li");
+      empty.className = "tray__empty";
+      empty.textContent = "Još nema kolegija. Dodaj iz pretrage ili učitaj studij.";
+      list.appendChild(empty);
+      return;
+    }
+    courses.forEach((course, index) => {
+      const item = document.createElement("li");
+      item.className = "chip";
+      const label = document.createElement("span");
+      label.textContent = PMF.schedule.displayName(course, courses) || course.naziv || "Bez naziva";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "chip__x";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Ukloni ${course.naziv || "kolegij"}`);
+      remove.addEventListener("click", () => PMF.app.removeAt(index));
+      item.append(label, remove);
+      list.appendChild(item);
+    });
+  }
+
+  function updateMobility(courses) {
+    const hint = $("mobility-hint");
+    if (!hint) return;
+    const faculties = new Set(courses.map((course) => course.faculty_id).filter((id) => id != null && id !== ""));
+    if (faculties.size < 2) {
+      hint.hidden = true;
+      hint.textContent = "";
+      return;
+    }
+    hint.hidden = false;
+    hint.textContent = "Odabir miješa sastavnice. To je horizontalna mobilnost: razina mora odgovarati i kolegij se ne smije već predavati na matičnom programu. Prosjek se ne traži, a pad ne ulazi u prosjek kod kuće. Obrazac, naknadu, rok i slobodna mjesta određuje fakultet.";
+  }
+
+  async function loadProgrammes(facultyId) {
+    const select = $("programme-select");
+    const button = $("btn-load-programme");
+    if (!select || !button) return;
+    select.innerHTML = "";
+    button.disabled = true;
+    if (!facultyId) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Odaberi sastavnicu, pa studij";
+      select.appendChild(option);
+      select.disabled = true;
+      return;
+    }
+    select.disabled = true;
+    const waiting = document.createElement("option");
+    waiting.value = "";
+    waiting.textContent = "Učitavam studije…";
+    select.appendChild(waiting);
+    try {
+      const response = await fetch(`/api/catalog?op=programmes&faculty_id=${encodeURIComponent(facultyId)}`);
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Popis studija nije stigao.");
+      select.innerHTML = "";
+      const programmes = data.programmes || [];
+      if (!programmes.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Nema objavljenog nastavnog programa";
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+      }
+      for (const programme of programmes) {
+        const option = document.createElement("option");
+        option.value = JSON.stringify({
+          razina: programme.razina,
+          izvedba: programme.izvedba,
+          smjer: programme.smjer,
+        });
+        const prefix = programme.kategorija ? `${programme.kategorija} — ` : "";
+        option.textContent = prefix + (programme.naziv || "Studij");
+        select.appendChild(option);
+      }
+      select.disabled = false;
+      button.disabled = false;
+    } catch (err) {
+      select.innerHTML = "";
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Studiji nisu učitani";
+      select.appendChild(option);
+      PMF.ui.toast(err.message, "error");
+    }
+  }
+
+  async function loadProgramme() {
+    const facultyId = facultySelect().value;
+    const select = $("programme-select");
+    const button = $("btn-load-programme");
+    if (!facultyId || !select.value) return;
+    const current = PMF.app.getCourses();
+    if (current.length && !window.confirm("Učitavanje studija zamjenjuje trenutni odabir.")) return;
+    let spec;
+    try {
+      spec = JSON.parse(select.value);
+    } catch (err) {
+      return;
+    }
+    button.disabled = true;
+    const previous = button.textContent;
+    button.textContent = "Učitavam…";
+    setStatus("Učitavam studij sa ISVU-a. Preduvjeti se povlače za svaki kolegij, pa ovo može potrajati.");
+    try {
+      const params = new URLSearchParams({
+        op: "dag",
+        faculty_id: facultyId,
+        razina: String(spec.razina),
+        izvedba: String(spec.izvedba),
+        smjer: String(spec.smjer),
+      });
+      const response = await fetch(`/api/catalog?${params}`);
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Studij nije učitan.");
+      const list = data.kolegiji || [];
+      const notes = [`Učitano ${list.length} kolegija.`];
+      if (data.merged_duplicates && data.merged_duplicates.length) {
+        notes.push(`Spojeno dvostrukih naziva: ${data.merged_duplicates.length}.`);
+      }
+      if (data.dropped_prerequisites && data.dropped_prerequisites.length) {
+        notes.push(`Preduvjeti izvan studija nisu nacrtani: ${data.dropped_prerequisites.length}.`);
+      }
+      PMF.app.replaceCourses(list, notes.join(" "));
+      setStatus("Studij je u odabiru. Graf računa preduvjete i ECTS, ne satnicu.");
+    } catch (err) {
+      PMF.ui.toast(err.message, "error");
+      setStatus("");
+    } finally {
+      button.disabled = !select.value;
+      button.textContent = previous;
+    }
+  }
+
+  async function bootCatalog() {
+    try {
+      const response = await fetch("/api/catalog?op=institutions");
+      const data = await response.json();
+      if (response.ok) fillFaculties(data.institutions);
+    } catch (err) {
+      setStatus("Popis sastavnica nije stigao. Pretraga i dalje radi čim katalog stigne.");
+    }
+    try {
+      const response = await fetch("/api/catalog?op=spine");
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Katalog nije stigao.");
+      spine = data;
+      fillFaculties(data.institutions);
+      const failed = (data.coverage && data.coverage.faculties_failed) || [];
+      if (failed.length) {
+        setStatus(`Katalog: ${data.count} kolegija. ${failed.length} sastavnica nije pročitana, pa popis nije potpun.`);
+      }
+      runSearch();
+    } catch (err) {
+      setStatus(`${err.message} Možeš tražiti po nazivu i prije nego katalog stigne.`);
+    }
+  }
+
+  function boot() {
+    wireCopy();
+    wireTabs();
+    const query = $("course-query");
+    const faculty = facultySelect();
+    if (query) query.addEventListener("input", runSearch);
+    if (faculty) {
+      faculty.addEventListener("change", () => {
+        runSearch();
+        loadProgrammes(faculty.value);
+      });
+    }
+    const loadBtn = $("btn-load-programme");
+    if (loadBtn) loadBtn.addEventListener("click", loadProgramme);
+    if (PMF.app) {
+      PMF.app.subscribe((courses) => {
+        renderTray(courses);
+        updateMobility(courses);
+      });
+    }
+    bootCatalog();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();

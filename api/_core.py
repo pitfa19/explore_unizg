@@ -883,6 +883,7 @@ def call_tool(name, args):
                     except (TypeError, ValueError):
                         ects = 0.0
                     courses.append({"naziv": it["naziv"],
+                                    "sifra": it["sifra"],
                                     "semestar": "zimski" if sem % 2 else "ljetni",
                                     "godina": (sem + 1) // 2,
                                     "status": "izborni" if grp else "obavezni",

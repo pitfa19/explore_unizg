@@ -12,6 +12,14 @@
     return e;
   }
 
+  function optionValue(opt) {
+    return opt && typeof opt === "object" ? String(opt.value) : String(opt);
+  }
+
+  function optionLabel(opt) {
+    return opt && typeof opt === "object" ? String(opt.label) : String(opt);
+  }
+
   function select(field, options, value, extra) {
     const s = el("select");
     s.dataset.field = field;
@@ -21,12 +29,13 @@
       s.appendChild(o);
     }
     for (const opt of options) {
-      const o = el("option", null, opt);
-      o.value = opt;
+      const o = el("option", null, optionLabel(opt));
+      o.value = optionValue(opt);
       s.appendChild(o);
     }
+    const known = new Set([...s.options].map((o) => o.value));
     // sačuvaj postojeću (nepostojeću) referencu kao vlastitu opciju
-    if (value && !options.includes(value)) {
+    if (value && !known.has(value)) {
       const o = el("option", null, `${value} (nepostojeći)`);
       o.value = value;
       s.appendChild(o);
@@ -44,7 +53,8 @@
   function summaryMeta(c) {
     const n = (c.preduvjeti || []).length;
     const par = c.semestar === "zimski" ? "Z" : "Lj";
-    return `${par} · ${c.godina}. god · ${c.ects} ECTS` + (n ? ` · ${n} pred.` : "");
+    const fac = c.fakultet ? `${c.fakultet} · ` : "";
+    return `${fac}${par} · ${c.godina}. god · ${c.ects} ECTS` + (n ? ` · ${n} pred.` : "");
   }
 
   function refreshSummary(courseEl) {
@@ -57,20 +67,26 @@
     const nameEl = q(".course__name");
     nameEl.textContent = naziv || "Bez naziva";
     nameEl.classList.toggle("is-empty", !naziv);
+    const fac = courseEl.dataset.fakultet ? `${courseEl.dataset.fakultet} · ` : "";
     q(".course__meta").textContent =
-      `${sem === "zimski" ? "Z" : "Lj"} · ${god}. god · ${ects} ECTS` + (npred ? ` · ${npred} pred.` : "");
+      `${fac}${sem === "zimski" ? "Z" : "Lj"} · ${god}. god · ${ects} ECTS` + (npred ? ` · ${npred} pred.` : "");
   }
 
   function courseNode(c, i, courses) {
-    const otherNames = courses.filter((_, idx) => idx !== i).map((x) => x.naziv).filter(Boolean);
+    const keyOf = PMF.schedule.courseKey;
+    const otherNames = courses
+      .filter((_, idx) => idx !== i)
+      .map((x) => ({ value: keyOf(x), label: PMF.schedule.displayName(x, courses) || "Bez naziva" }))
+      .filter((opt) => opt.value);
 
     const details = el("details", "course");
     details.dataset.idx = String(i);
+    if (c.fakultet) details.dataset.fakultet = c.fakultet;
     if (openSet.has(i)) details.open = true;
 
     // ── summary ──
     const summary = el("summary", "course__summary");
-    const name = el("span", "course__name", c.naziv || "Bez naziva");
+    const name = el("span", "course__name", PMF.schedule.displayName(c, courses) || "Bez naziva");
     if (!c.naziv) name.classList.add("is-empty");
     const meta = el("span", "course__meta mono", summaryMeta(c));
     const del = el("button", "icon-btn course__del", "✕");
