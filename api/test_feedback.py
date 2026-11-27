@@ -6,8 +6,12 @@ import feedback
 
 
 class _Resp:
-    def __init__(self, status):
+    def __init__(self, status, body=b'{"ok": true}'):
         self.status = status
+        self._body = body
+
+    def read(self):
+        return self._body
 
     def __enter__(self):
         return self
@@ -27,7 +31,10 @@ class FeedbackTest(unittest.TestCase):
         self.assertFalse(body["stored"])
 
     def test_empty_message_and_bad_email(self):
-        env = {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_SERVICE_ROLE_KEY": "secret"}
+        env = {
+            "FEEDBACK_WEBHOOK_URL": "https://script.google.com/macros/s/example/exec",
+            "FEEDBACK_WEBHOOK_SECRET": "secret",
+        }
         with mock.patch.dict("os.environ", env, clear=True):
             code, body = feedback.accept({"message": "   "}, "1.2.3.4", "ua")
             self.assertEqual(code, 400)
@@ -36,14 +43,16 @@ class FeedbackTest(unittest.TestCase):
             self.assertIn("E-pošta", body["error"])
 
     def test_stores_trimmed_context_and_counts_the_ip(self):
-        env = {"SUPABASE_URL": "https://example.supabase.co/", "SUPABASE_SERVICE_ROLE_KEY": "secret"}
+        env = {
+            "FEEDBACK_WEBHOOK_URL": "https://script.google.com/macros/s/example/exec",
+            "FEEDBACK_WEBHOOK_SECRET": "secret",
+        }
         seen = {}
 
         def opener(req, timeout):
             seen["url"] = req.full_url
-            seen["auth"] = req.get_header("Authorization")
             seen["body"] = json.loads(req.data.decode("utf-8"))
-            return _Resp(201)
+            return _Resp(200)
 
         payload = {
             "message": "  Semestar 4 nema Diplomski rad.  ",
@@ -51,7 +60,10 @@ class FeedbackTest(unittest.TestCase):
             "page": "graph",
             "context": {
                 "url": "https://explore-unizg.vercel.app/",
-                "course": {"id": "36:223060"},
+                "viewport": {"width": 390, "height": 844},
+                "faculty": {"id": "3", "naziv": "FER"},
+                "programme": {"id": "19", "naziv": "Računarstvo"},
+                "course": {"id": "36:223060", "naziv": "Diplomski rad"},
                 "password": "ne spremaj",
             },
         }
@@ -64,20 +76,29 @@ class FeedbackTest(unittest.TestCase):
                 {"message": "još jedna"}, "203.0.113.8", "TestAgent", now=1001, opener=opener,
             )
         seen["body"] = first
-        self.assertEqual(seen["url"], "https://example.supabase.co/rest/v1/feedback")
-        self.assertEqual(seen["auth"], "Bearer secret")
+        self.assertEqual(seen["url"], "https://script.google.com/macros/s/example/exec")
+        self.assertEqual(seen["body"]["secret"], "secret")
         self.assertEqual(seen["body"]["message"], "Semestar 4 nema Diplomski rad.")
         self.assertEqual(seen["body"]["email"], "netko@example.com")
-        self.assertEqual(seen["body"]["context"]["course"]["id"], "36:223060")
-        self.assertNotIn("password", seen["body"]["context"])
+        self.assertEqual(seen["body"]["page"], "graph")
+        self.assertEqual(seen["body"]["sastavnica"], "FER (3)")
+        self.assertEqual(seen["body"]["studij"], "Računarstvo (19)")
+        self.assertEqual(seen["body"]["course"], "Diplomski rad (36:223060)")
+        self.assertEqual(seen["body"]["viewport"], "390x844")
         self.assertEqual(seen["body"]["user_agent"], "TestAgent")
+        context = json.loads(seen["body"]["context_json"])
+        self.assertEqual(context["course"]["id"], "36:223060")
+        self.assertNotIn("password", context)
         self.assertEqual(again[0], 201)
 
     def test_rate_limit_is_per_ip(self):
-        env = {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_SERVICE_ROLE_KEY": "secret"}
+        env = {
+            "FEEDBACK_WEBHOOK_URL": "https://script.google.com/macros/s/example/exec",
+            "FEEDBACK_WEBHOOK_SECRET": "secret",
+        }
 
         def opener(req, timeout):
-            return _Resp(201)
+            return _Resp(200)
 
         with mock.patch.dict("os.environ", env, clear=True):
             for i in range(feedback.MAX_PER_WINDOW):
@@ -90,7 +111,10 @@ class FeedbackTest(unittest.TestCase):
         self.assertEqual(other, 201)
 
     def test_failed_store_does_not_consume_the_allowance(self):
-        env = {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_SERVICE_ROLE_KEY": "secret"}
+        env = {
+            "FEEDBACK_WEBHOOK_URL": "https://script.google.com/macros/s/example/exec",
+            "FEEDBACK_WEBHOOK_SECRET": "secret",
+        }
 
         def opener(req, timeout):
             raise urllib_error()
@@ -100,6 +124,20 @@ class FeedbackTest(unittest.TestCase):
             self.assertEqual(code, 502)
             self.assertFalse(body["stored"])
             self.assertTrue(feedback.rate_ok("203.0.113.9", now=11))
+
+    def test_webhook_rejecting_ok_false_is_502(self):
+        env = {
+            "FEEDBACK_WEBHOOK_URL": "https://script.google.com/macros/s/example/exec",
+            "FEEDBACK_WEBHOOK_SECRET": "secret",
+        }
+
+        def opener(req, timeout):
+            return _Resp(200, b'{"ok": false, "error": "forbidden"}')
+
+        with mock.patch.dict("os.environ", env, clear=True):
+            code, body = feedback.accept({"message": "pad"}, "203.0.113.10", "ua", now=10, opener=opener)
+        self.assertEqual(code, 502)
+        self.assertFalse(body["stored"])
 
 
 def urllib_error():

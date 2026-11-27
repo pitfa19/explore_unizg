@@ -1,7 +1,13 @@
-"""POST /api/feedback. A visitor report, stored in Supabase when the env vars exist.
+"""POST /api/feedback. A visitor report, stored in a private Google Sheet
+when the Apps Script webhook env vars exist.
 
-SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are read from the environment.
-They are never written to the repository. Missing either one returns 503.
+FEEDBACK_WEBHOOK_URL and FEEDBACK_WEBHOOK_SECRET are read from the
+environment. They are never written to the repository. Missing either
+one returns 503.
+
+The webhook is a container-bound Google Apps Script web app that appends
+a row to the "explore-unizg feedback" sheet. The shared secret is sent
+in the JSON body (Apps Script web apps strip custom HTTP headers).
 """
 import json
 import os
@@ -9,7 +15,9 @@ import re
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler
+from zoneinfo import ZoneInfo
 
 WINDOW_S = 600
 MAX_PER_WINDOW = 5
@@ -22,6 +30,11 @@ CONTEXT_KEYS = (
     "url", "viewport", "timestamp", "faculty", "programme",
     "course", "section", "selectionCount", "status",
 )
+ZAGREB = ZoneInfo("Europe/Zagreb")
+SHEET_COLUMNS = (
+    "created_at", "message", "email", "page", "sastavnica",
+    "studij", "course", "viewport", "user_agent", "context_json",
+)
 
 
 def reset_rates():
@@ -29,11 +42,11 @@ def reset_rates():
 
 
 def credentials():
-    url = (os.environ.get("SUPABASE_URL") or "").strip().rstrip("/")
-    key = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or "").strip()
-    if not url or not key:
+    url = (os.environ.get("FEEDBACK_WEBHOOK_URL") or "").strip()
+    secret = (os.environ.get("FEEDBACK_WEBHOOK_SECRET") or "").strip()
+    if not url or not secret:
         return None
-    return url, key
+    return url, secret
 
 
 def client_ip(headers, fallback="unknown"):
@@ -103,21 +116,103 @@ def validate(payload):
     }, None
 
 
-def post_row(row, url, key, opener=None):
+def _label(value, limit=300):
+    if value is None or value == "":
+        return ""
+    if isinstance(value, dict):
+        naziv = value.get("naziv") or value.get("name") or value.get("title")
+        ident = value.get("id")
+        if isinstance(naziv, str):
+            naziv = naziv.strip()
+        else:
+            naziv = ""
+        if ident is None:
+            ident = ""
+        else:
+            ident = str(ident).strip()
+        if naziv and ident:
+            text = f"{naziv} ({ident})"
+        else:
+            text = naziv or ident
+        return text[:limit]
+    if isinstance(value, (str, int, float)):
+        return str(value).strip()[:limit]
+    return ""
+
+
+def _viewport(value):
+    if isinstance(value, dict):
+        width, height = value.get("width"), value.get("height")
+        if width not in (None, "") and height not in (None, ""):
+            return f"{width}x{height}"[:80]
+    if isinstance(value, str):
+        return value.strip()[:80]
+    return ""
+
+
+def sheet_fields(row, user_agent, now=None):
+    """Flatten a validated report into the Google Sheet columns."""
+    context = row.get("context") or {}
+    if now is None:
+        stamp = datetime.now(ZAGREB)
+    elif isinstance(now, datetime):
+        stamp = now.astimezone(ZAGREB) if now.tzinfo else now.replace(tzinfo=ZAGREB)
+    else:
+        stamp = datetime.now(ZAGREB)
+    return {
+        "created_at": stamp.isoformat(timespec="seconds"),
+        "message": row["message"],
+        "email": row.get("email") or "",
+        "page": row.get("page") or "",
+        "sastavnica": _label(context.get("faculty")),
+        "studij": _label(context.get("programme")),
+        "course": _label(context.get("course")),
+        "viewport": _viewport(context.get("viewport")),
+        "user_agent": ((user_agent or "").strip()[:400] or ""),
+        "context_json": json.dumps(context, ensure_ascii=False),
+    }
+
+
+def _webhook_ok(status, raw):
+    if status is None or status >= 300:
+        return False
+    text = (raw or b"").decode("utf-8", "replace").strip()
+    if not text:
+        return 200 <= status < 300
+    try:
+        body = json.loads(text)
+    except json.JSONDecodeError:
+        # Apps Script may wrap JSON; a bare "ok" or HTML error is a miss.
+        return False
+    if isinstance(body, dict):
+        return body.get("ok") is True
+    return False
+
+
+def post_row(row, url, secret, opener=None):
+    payload = {"secret": secret}
+    payload.update(row)
     req = urllib.request.Request(
-        url + "/rest/v1/feedback",
-        data=json.dumps(row, ensure_ascii=False).encode("utf-8"),
+        url,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         method="POST",
     )
-    req.add_header("apikey", key)
-    req.add_header("Authorization", "Bearer " + key)
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Prefer", "return=minimal")
+    req.add_header("Content-Type", "application/json; charset=utf-8")
     open_ = opener or urllib.request.urlopen
     try:
         with open_(req, timeout=8) as resp:
-            return getattr(resp, "status", 201), None
+            status = getattr(resp, "status", 200)
+            raw = resp.read() if hasattr(resp, "read") else b""
+            if _webhook_ok(status, raw):
+                return status or 201, None
+            return 502, "Pohrana je odbila zapis."
     except urllib.error.HTTPError as exc:
+        try:
+            raw = exc.read()
+        except Exception:
+            raw = b""
+        if _webhook_ok(exc.code, raw):
+            return exc.code, None
         return exc.code, "Pohrana je odbila zapis."
     except Exception:
         return 502, "Zapis nije stigao."
@@ -131,15 +226,16 @@ def accept(payload, ip, user_agent, now=None, opener=None):
     row, err = validate(payload)
     if err:
         return 400, {"ok": False, "stored": False, "error": err}
-    now = time.time() if now is None else now
-    if not rate_ok(ip, now):
+    clock = time.time() if not isinstance(now, (int, float)) else now
+    if not rate_ok(ip, clock):
         return 429, {"ok": False, "stored": False, "error": "Previše prijava. Pokušaj kasnije."}
-    url, key = creds
-    row["user_agent"] = ((user_agent or "").strip()[:400] or None)
-    status, fault = post_row(row, url, key, opener)
+    url, secret = creds
+    stamp = now if isinstance(now, datetime) else None
+    fields = sheet_fields(row, user_agent, now=stamp)
+    status, fault = post_row(fields, url, secret, opener)
     if fault or status >= 300:
         return 502, {"ok": False, "stored": False, "error": fault or "Zapis nije spremljen."}
-    remember(ip, now)
+    remember(ip, clock)
     return 201, {"ok": True, "stored": True}
 
 
