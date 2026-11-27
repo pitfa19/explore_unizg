@@ -395,9 +395,12 @@ def _grouped_tables(chunk):
         grp = groups.get(gid.group(1), {"naziv": None, "min_ects": None}) if gid else None
         items = []
         for r in rows[1:]:
-            if len(r) != len(keys):
+            # Shorter rows are group banners and "nije evidentirano" notices.
+            # A few pages (Protestantska teologija) add a trailing hour cell
+            # the header does not name. The leading cells still line up.
+            if len(r) < len(keys):
                 continue
-            d = dict(zip(keys, r))
+            d = dict(zip(keys, r[:len(keys)]))
             items.append({"sifra": d.get("Šifra"), "naziv": d.get("Naziv"),
                           "ects": d.get("ECTS"), "polaze_se": d.get("Polaže se"),
                           "sati": {k: v for k, v in d.items()

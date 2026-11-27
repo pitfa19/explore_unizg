@@ -901,9 +901,12 @@ def call_tool(name, args):
         only_core = bool(args.get("only_obavezni"))
         seen, courses = set(), []
         elective_codes = set()
+        semester_numbers, unrecorded = [], []
         for sem, chunk in sems:
+            semester_numbers.append(sem)
             rows, skipped = select_curriculum_rows(isvu._grouped_tables(chunk), only_core)
             elective_codes.update(skipped)
+            before = len(courses)
             for grp, it in rows:
                 if not it["sifra"] or it["sifra"] in seen:
                     continue
@@ -921,11 +924,24 @@ def call_tool(name, args):
                                 "preduvjeti": [],
                                 "_paths": [f"/podaci/{fid}/akademskagodina/{year}"
                                            f"/predmeti/predmet/{it['sifra']}"]})
+            if len(courses) == before and not skipped:
+                unrecorded.append(sem)
 
         # Merge before anything else looks at the list. A year-long course appears as a 0 ECTS
         # placeholder row and a credit-bearing row, and resolving `target` against the raw list
         # picked whichever came first: the placeholder, at 0 ECTS in the wrong semester.
         courses, merged = isvu.merge_duplicates(courses)
+
+        if only_core and not courses:
+            if elective_codes:
+                return {"error": ("ISVU za ovaj studij nije evidentirao obavezne kolegije. "
+                                  "Objavljene su samo izborne grupe."),
+                        "skipped_electives": sorted(elective_codes),
+                        "semestri_zapisa": semester_numbers,
+                        "semestri_bez_zapisa": unrecorded}
+            return {"error": "ISVU za ovaj studij nije evidentirao obavezne kolegije.",
+                    "semestri_zapisa": semester_numbers,
+                    "semestri_bez_zapisa": unrecorded}
 
         target, chain = args.get("target"), None
         if target:
@@ -986,7 +1002,9 @@ def call_tool(name, args):
             "dropped_prerequisites": dropped,
             # Present only for the obligatory-only export. Codes that also appear
             # as a mandatory row are not listed: the core row is the one kept.
-            **({"skipped_electives": sorted(elective_codes - {c["sifra"] for c in courses})}
+            **({"skipped_electives": sorted(elective_codes - {c["sifra"] for c in courses}),
+                "semestri_zapisa": semester_numbers,
+                "semestri_bez_zapisa": unrecorded}
                if only_core else {}),
             "caveat": ("An empty preduvjeti list means the faculty published nothing, not that the "
                        "course has no prerequisites. For a whole programme, ECTS per semester "

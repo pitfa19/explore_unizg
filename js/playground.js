@@ -486,6 +486,14 @@
       if (!list.length) throw new Error("ISVU za ovaj studij nije vratio obavezne kolegije.");
       const skipped = Array.isArray(data.skipped_electives) ? data.skipped_electives.length : 0;
       const notes = [`Učitano ${list.length} obaveznih kolegija.`];
+      const span = Array.isArray(data.semestri_zapisa) ? data.semestri_zapisa : [];
+      if (span.length && span[0] > 1) {
+        notes.push(`Zapis pokriva semestre ${span[0]}–${span[span.length - 1]}.`);
+      }
+      const missing = Array.isArray(data.semestri_bez_zapisa) ? data.semestri_bez_zapisa : [];
+      if (missing.length) {
+        notes.push(`Semestri bez evidentiranog programa: ${missing.join(", ")}.`);
+      }
       if (skipped) notes.push(`Izborne grupe nisu uključene (${skipped}).`);
       if (data.merged_duplicates && data.merged_duplicates.length) {
         notes.push(`Spojeno dvostrukih naziva: ${data.merged_duplicates.length}.`);

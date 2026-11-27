@@ -6,6 +6,24 @@ import catalog
 
 
 class CatalogShapeTest(unittest.TestCase):
+    def test_grouped_tables_keep_a_trailing_extra_cell(self):
+        html = """
+        <div id="semestar1">
+        <table>
+          <tr><th>Šifra</th><th>Naziv</th><th>Polaže se</th><th>ECTS</th><th>P</th></tr>
+          <tr><td>300013</td><td>Ekumenska teologija I</td><td>Da</td><td>4.0</td><td>30</td><td>0</td></tr>
+          <tr><td colspan="6">Obavezni predmeti za semestar nisu evidentirani.</td></tr>
+          <tr><td colspan="6">Izborna grupa: A Opis: min 6 ECTS</td></tr>
+        </table>
+        </div>
+        """
+        grouped = _core.isvu._grouped_tables(html)
+        self.assertEqual(len(grouped), 1)
+        grp, items = grouped[0]
+        self.assertIsNone(grp)
+        self.assertEqual([(it["sifra"], it["naziv"], it["ects"]) for it in items],
+                         [("300013", "Ekumenska teologija I", "4.0")])
+
     def test_select_curriculum_rows_drops_elective_groups(self):
         grouped = [
             (None, [{"sifra": "1", "naziv": "Matematika"}]),
