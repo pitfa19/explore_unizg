@@ -87,9 +87,79 @@
     });
   }
 
-  function setStatus(text) {
+  function setStatus(text, busy) {
     const el = $("search-status");
-    if (el) el.textContent = text || "";
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("is-busy", Boolean(busy));
+  }
+
+  function showSearchSkeleton(message) {
+    const list = $("search-results");
+    if (!list) return;
+    if (!list.querySelector(".hit--skeleton")) {
+      list.innerHTML = "";
+      list.setAttribute("aria-busy", "true");
+      const widths = ["skeleton--w1", "skeleton--w2", "skeleton--w3", "skeleton--w4"];
+      for (let i = 0; i < 4; i++) {
+        const item = document.createElement("li");
+        item.className = "hit hit--skeleton";
+        item.setAttribute("aria-hidden", "true");
+        const text = document.createElement("div");
+        const name = document.createElement("span");
+        name.className = `skeleton ${widths[i]}`;
+        const meta = document.createElement("span");
+        meta.className = "skeleton skeleton--meta";
+        text.append(name, meta);
+        const button = document.createElement("span");
+        button.className = "skeleton skeleton--btn";
+        item.append(text, button);
+        list.appendChild(item);
+      }
+    }
+    setStatus(message, true);
+  }
+
+  function endSearchBusy() {
+    const list = $("search-results");
+    if (!list) return;
+    list.removeAttribute("aria-busy");
+    list.querySelectorAll(".hit--skeleton").forEach((item) => item.remove());
+  }
+
+  function setGraphBusy(on) {
+    const graph = document.getElementById("graph");
+    if (!graph) return;
+    if (on) {
+      graph.setAttribute("aria-busy", "true");
+      if (!graph.querySelector(".graph-skeleton")) {
+        const box = document.createElement("div");
+        box.className = "graph-skeleton";
+        box.setAttribute("aria-hidden", "true");
+        for (let i = 0; i < 4; i++) box.appendChild(document.createElement("span"));
+        graph.appendChild(box);
+      }
+      return;
+    }
+    graph.removeAttribute("aria-busy");
+    const box = graph.querySelector(".graph-skeleton");
+    if (box) box.remove();
+  }
+
+  function settleField(select) {
+    if (!select) return;
+    select.classList.remove("is-invalid", "is-shake");
+  }
+
+  function nudgeField(select, message) {
+    setProgrammeStatus(message, "error");
+    if (!select) return;
+    select.classList.add("is-invalid");
+    select.classList.remove("is-shake");
+    void select.offsetWidth;
+    select.classList.add("is-shake");
+    select.addEventListener("animationend", () => select.classList.remove("is-shake"), { once: true });
+    select.focus();
   }
 
   function facultySelect() {
@@ -136,12 +206,13 @@
   function renderHits(hits, total, query, facultyId) {
     const list = $("search-results");
     if (!list) return;
-    list.innerHTML = "";
     const needle = fold(query);
     if (!spine && needle.length < 2) {
-      setStatus("Učitavam katalog. Možeš već tražiti: upiši barem dva slova.");
+      showSearchSkeleton("Učitavam katalog. Možeš već tražiti: upiši barem dva slova.");
       return;
     }
+    list.innerHTML = "";
+    list.removeAttribute("aria-busy");
     if (spine && !needle && !facultyId) {
       const failed = (spine.coverage && spine.coverage.faculties_failed) || [];
       const gap = failed.length ? ` ${failed.length} sastavnica nije pročitana.` : "";
@@ -181,8 +252,9 @@
 
   async function addHit(course, button) {
     button.disabled = true;
-    const previous = button.textContent;
-    button.textContent = "…";
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+    button.setAttribute("aria-label", "Učitavam kolegij");
     try {
       const params = new URLSearchParams({
         op: "course",
@@ -198,14 +270,16 @@
       PMF.ui.toast(`Nisam dodao kolegij: ${err.message}`, "error");
     } finally {
       button.disabled = false;
-      button.textContent = previous;
+      button.classList.remove("is-loading");
+      button.removeAttribute("aria-busy");
+      button.removeAttribute("aria-label");
     }
   }
 
   async function serverSearch(query, facultyId, seq) {
     const params = new URLSearchParams({ op: "search", q: query });
     if (facultyId) params.set("faculty_id", facultyId);
-    setStatus("Tražim u katalogu…");
+    showSearchSkeleton("Tražim u katalogu…");
     try {
       const response = await fetch(`/api/catalog?${params}`);
       const data = await response.json();
@@ -213,7 +287,10 @@
       if (!response.ok || data.error) throw new Error(data.error || "Pretraga nije uspjela.");
       renderHits(data.courses || [], data.total_matches || 0, query, facultyId);
     } catch (err) {
-      if (seq === searchSeq) setStatus(err.message);
+      if (seq === searchSeq) {
+        endSearchBusy();
+        setStatus(err.message);
+      }
     }
   }
 
@@ -306,7 +383,6 @@
     const button = $("btn-load-programme");
     if (!select || !button) return;
     select.innerHTML = "";
-    button.disabled = true;
     if (!facultyId) {
       const option = document.createElement("option");
       option.value = "";
@@ -316,7 +392,8 @@
       setProgrammeStatus("");
       return;
     }
-    select.disabled = true;
+    select.disabled = false;
+    select.setAttribute("aria-busy", "true");
     const waiting = document.createElement("option");
     waiting.value = "";
     waiting.textContent = "Učitavam studije…";
@@ -328,16 +405,21 @@
       try { data = await response.json(); } catch (err) { data = {}; }
       if (!response.ok || data.error) throw new Error(data.error || "Popis studija nije stigao.");
       select.innerHTML = "";
+      select.removeAttribute("aria-busy");
       const programmes = data.programmes || [];
       if (!programmes.length) {
         const option = document.createElement("option");
         option.value = "";
         option.textContent = "Nema objavljenog nastavnog programa";
         select.appendChild(option);
-        select.disabled = true;
+        select.disabled = false;
         setProgrammeStatus("ISVU za ovu sastavnicu nije vratio nastavni program.", "error");
         return;
       }
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Odaberi studij";
+      select.appendChild(placeholder);
       for (const programme of programmes) {
         const option = document.createElement("option");
         option.value = `${programme.razina}|${programme.izvedba}|${programme.smjer}`;
@@ -349,7 +431,7 @@
         select.appendChild(option);
       }
       select.disabled = false;
-      button.disabled = false;
+      select.value = "";
       setProgrammeStatus(`${programmes.length} studija. Odaberi jedan i učitaj ga.`);
     } catch (err) {
       select.innerHTML = "";
@@ -357,8 +439,8 @@
       option.value = "";
       option.textContent = "Studiji nisu učitani";
       select.appendChild(option);
-      select.disabled = true;
-      button.disabled = true;
+      select.disabled = false;
+      select.removeAttribute("aria-busy");
       setProgrammeStatus(err.message || "Popis studija nije stigao.", "error");
       PMF.ui.toast(err.message, "error");
     }
@@ -370,23 +452,24 @@
     const select = $("programme-select");
     const button = $("btn-load-programme");
     if (!button || !select) return;
+    if (button.classList.contains("is-loading")) return;
     if (!facultyId) {
-      setProgrammeStatus("Prvo odaberi sastavnicu.", "error");
+      nudgeField(faculty, "Prvo odaberi fakultet.");
       return;
     }
+    settleField(faculty);
     const spec = selectedProgramme(select);
     if (!spec) {
-      setProgrammeStatus(select.disabled ? "Popis studija još nije stigao." : "Odaberi studij, pa učitaj.", "error");
+      nudgeField(select, "Prvo odaberi studij.");
       return;
     }
+    settleField(select);
     const current = PMF.app.getCourses();
     if (current.length && !window.confirm("Učitavanje studija zamjenjuje trenutni odabir.")) return;
-    button.disabled = true;
+    button.classList.add("is-loading");
     button.setAttribute("aria-busy", "true");
-    const previous = button.textContent;
-    button.textContent = "Učitavam…";
-    setProgrammeStatus("Učitavam studij s ISVU-a. Preduvjeti idu kolegij po kolegij, pa ovo traje.", "busy");
-    setStatus("Učitavam studij s ISVU-a…");
+    setProgrammeStatus("Učitavam studij. Slažem graf čim stignu preduvjeti.", "busy");
+    setGraphBusy(true);
     try {
       const params = new URLSearchParams({
         op: "dag",
@@ -408,6 +491,8 @@
       if (data.dropped_prerequisites && data.dropped_prerequisites.length) {
         notes.push(`Preduvjeti izvan studija nisu nacrtani: ${data.dropped_prerequisites.length}.`);
       }
+      setProgrammeStatus("Slažem graf…", "busy");
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       PMF.app.replaceCourses(list);
       setProgrammeStatus(notes.join(" "));
       setStatus("Studij je u odabiru. Graf računa preduvjete i ECTS, ne satnicu.");
@@ -419,13 +504,14 @@
       setStatus("");
       PMF.ui.toast(message, "error");
     } finally {
+      button.classList.remove("is-loading");
       button.removeAttribute("aria-busy");
-      button.disabled = !selectedProgramme(select);
-      button.textContent = previous;
+      setGraphBusy(false);
     }
   }
 
   async function bootCatalog() {
+    showSearchSkeleton("Učitavam katalog…");
     try {
       const response = await fetch("/api/catalog?op=institutions");
       const data = await response.json();
@@ -458,8 +544,15 @@
     if (query) query.addEventListener("input", runSearch);
     if (faculty) {
       faculty.addEventListener("change", () => {
+        if (faculty.value) settleField(faculty);
         runSearch();
         loadProgrammes(faculty.value);
+      });
+    }
+    const programmeSelect = $("programme-select");
+    if (programmeSelect) {
+      programmeSelect.addEventListener("change", () => {
+        if (selectedProgramme(programmeSelect)) settleField(programmeSelect);
       });
     }
     const loadBtn = $("btn-load-programme");
