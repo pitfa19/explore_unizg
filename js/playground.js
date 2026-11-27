@@ -28,7 +28,7 @@
     }
     const label = button.dataset.label || button.textContent;
     button.dataset.label = label;
-    button.textContent = "✓";
+    button.textContent = "Kopirano";
     button.classList.add("is-done");
     button.setAttribute("aria-label", "Kopirano");
     clearTimeout(button._copyTimer);
@@ -36,7 +36,7 @@
       button.textContent = label;
       button.classList.remove("is-done");
       button.removeAttribute("aria-label");
-    }, 1600);
+    }, 2000);
   }
 
   function wireCopy() {
@@ -51,13 +51,15 @@
   }
 
   function selectTab(tab) {
-    const tabs = [...document.querySelectorAll("[role='tab']")];
+    const tabs = [...document.querySelectorAll(".agent-tabs__tab")];
     for (const item of tabs) {
       const on = item === tab;
       item.setAttribute("aria-selected", on ? "true" : "false");
       item.tabIndex = on ? 0 : -1;
       const panel = document.getElementById(item.getAttribute("aria-controls"));
-      if (panel) panel.hidden = !on;
+      if (!panel) continue;
+      panel.classList.toggle("is-on", on);
+      panel.hidden = !on;
     }
   }
 
