@@ -129,6 +129,7 @@
       nodes: [],
       edges: [],
       perCourse: [],
+      firstSemester: 1,
       totalSemesters: 0,
       totalYears: 0,
       ectsPerSem: {},
@@ -136,7 +137,7 @@
     };
   }
 
-  function computeSchedule(courses) {
+  function computeSchedule(courses, opts) {
     if (!Array.isArray(courses) || courses.length === 0) return emptyOk();
 
     const byKey = new Map();
@@ -190,6 +191,14 @@
       }
       const cur = byKey.get(key);
       let sem = matchSeason(m + 1, cur);
+      // planSem is the curriculum semester. A programme load sets it so a
+      // later-year course is not pulled into year 1 just because nothing
+      // blocks it. A pin from dragging can only move it later.
+      const floor = Number(cur.planSem);
+      if (Number.isFinite(floor) && floor >= 1) {
+        const floored = matchSeason(Math.floor(floor), cur);
+        if (floored > sem) sem = floored;
+      }
       const pin = Number(cur.pin);
       if (Number.isFinite(pin) && pin >= sem) sem = matchSeason(pin, cur);
       earliest.set(key, sem);
@@ -237,7 +246,18 @@
       })
       .sort((a, b) => a.earliest - b.earliest || a.naziv.localeCompare(b.naziv, "hr"));
 
-    const totalSemesters = Math.max(...earliest.values());
+    const span = opts && opts.span;
+    const placed = [...earliest.values()];
+    let firstSemester = span && Number(span.from) >= 1 ? Math.floor(Number(span.from)) : 1;
+    let totalSemesters = Math.max(
+      ...placed,
+      span && Number(span.to) >= 1 ? Math.floor(Number(span.to)) : 0
+    );
+    for (const s of placed) {
+      if (s < firstSemester) firstSemester = s;
+      if (s > totalSemesters) totalSemesters = s;
+    }
+    if (totalSemesters < firstSemester) totalSemesters = firstSemester;
     const totalYears = Math.ceil(totalSemesters / 2);
 
     const ectsPerSem = {};
@@ -249,7 +269,10 @@
     }));
     const totalEcts = courses.reduce((sum, course) => sum + (Number(course.ects) || 0), 0);
 
-    return { ok: true, earliest, nodes, edges, perCourse, totalSemesters, totalYears, ectsPerSem, totalEcts };
+    return {
+      ok: true, earliest, nodes, edges, perCourse,
+      firstSemester, totalSemesters, totalYears, ectsPerSem, totalEcts,
+    };
   }
 
   function ancestorsOf(key, courses) {

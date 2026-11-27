@@ -2,7 +2,7 @@
 (function () {
   const PMF = (window.PMF = window.PMF || {});
 
-  const state = { courses: [], droppedPrereqs: 0 };
+  const state = { courses: [], droppedPrereqs: 0, frame: null };
   const listeners = [];
 
   const $ = (id) => document.getElementById(id);
@@ -34,8 +34,13 @@
   }
 
   function renderDerived() {
-    const schedule = PMF.schedule.computeSchedule(state.courses);
-    PMF.graph.render(graphEl, schedule, state.courses, { onPin });
+    const span = state.frame ? { from: state.frame.from, to: state.frame.to } : null;
+    const schedule = PMF.schedule.computeSchedule(state.courses, { span });
+    PMF.graph.render(graphEl, schedule, state.courses, {
+      onPin,
+      slots: state.frame ? state.frame.slots : [],
+      unrecorded: state.frame ? state.frame.unrecorded : [],
+    });
     PMF.results.render(resultsEl, schedule);
     if (countEl) countEl.textContent = String(state.courses.length);
     const droppedEl = document.getElementById("dropped-prereqs");
@@ -81,7 +86,11 @@
   const handlers = {
     // izmjena vrijednosti polja, ne rušimo uređivač (fokus ostaje)
     onValueEdit(i, patch) {
-      state.courses[i] = { ...state.courses[i], ...patch };
+      const next = { ...state.courses[i], ...patch };
+      if (state.courses[i].planSem && (patch.godina != null || patch.semestar)) {
+        next.planSem = PMF.schedule.nominalSemester(next);
+      }
+      state.courses[i] = next;
       save();
       scheduleDerived();
     },
@@ -143,6 +152,8 @@
   // Zajednički put za uvoz iz datoteke i iz zalijepljenog teksta.
   function loadFromText(text) {
     state.courses = PMF.store.normalizeImported(JSON.parse(text));
+    state.frame = null;
+    PMF.store.saveFrame(null);
     relinkSelection();
     save();
     rebuildEditor({ resetOpen: true });
@@ -180,6 +191,7 @@
 
   function doReset() {
     state.courses = PMF.store.reset();
+    state.frame = null;
     rebuildEditor({ resetOpen: true });
     renderDerived();
     PMF.ui.toast("Vraćeno na zadani popis.", "info");
@@ -203,8 +215,10 @@
     $("btn-reset").addEventListener("click", doReset);
   }
 
-  function replaceCourses(list, message) {
+  function replaceCourses(list, message, frame) {
     state.courses = list;
+    state.frame = frame || null;
+    PMF.store.saveFrame(state.frame);
     relinkSelection();
     save();
     rebuildEditor({ resetOpen: true });
@@ -234,6 +248,7 @@
     countEl = $("course-count");
 
     state.courses = PMF.store.load();
+    state.frame = PMF.store.loadFrame();
     relinkSelection();
     rebuildEditor();
     renderDerived();

@@ -318,8 +318,12 @@ def programmes(args):
 def stamp_programme(payload, institution):
     if not isinstance(payload, dict) or payload.get("error"):
         return payload
+    raw_courses = payload.get("kolegiji") or []
+    code_count = {}
+    for course in raw_courses:
+        code_count[str(course.get("sifra") or "")] = code_count.get(str(course.get("sifra") or ""), 0) + 1
     courses = []
-    for course in payload.get("kolegiji") or []:
+    for course in raw_courses:
         item = dict(course)
         item.pop("_paths", None)
         item["faculty_id"] = institution["id"]
@@ -327,6 +331,9 @@ def stamp_programme(payload, institution):
         code = str(item.get("sifra") or "").strip()
         if code:
             item["id"] = f"{institution['id']}:{code}"
+            # A year-long course reuses one ISVU code for "(1/2)" and "(2/2)".
+            if code_count.get(code, 0) > 1:
+                item["id"] += f":{_core.curriculum_semester(item.get('godina'), item.get('semestar'))}"
         source = []
         for prereq in item.get("preduvjeti") or []:
             if isinstance(prereq, str):

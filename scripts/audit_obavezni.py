@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit the obligatory-course load for every programme the playground offers.
+"""Audit the obligatory-course load and the graph columns for every programme.
 
 The playground select is catalog.programmes: studies with has_curriculum. This
 script classifies each of those pages the same way unizg_dag_json does when
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, "api"))
 sys.path.insert(0, os.path.join(ROOT, "skills", "unizg-courses", "scripts"))
 
 import isvu  # noqa: E402
-from _core import select_curriculum_rows  # noqa: E402
+from _core import column_span, curriculum_semester, select_curriculum_rows  # noqa: E402
 import _core  # noqa: E402
 
 SLOT = re.compile(
@@ -70,7 +70,8 @@ def diagnose(doc):
     if not sems:
         return {"error": "no semester panes"}
     courses = []
-    seen = set()
+    seen = {}
+    repeated_later = []
     elective_codes = set()
     groups = []
     slot_names = []
@@ -87,20 +88,28 @@ def diagnose(doc):
         elective_codes.update(skipped)
         ob_n, ob_ects = 0, 0.0
         for grp, it in rows:
-            if not it.get("sifra") or it["sifra"] in seen:
+            code = it.get("sifra")
+            if not code:
                 continue
-            seen.add(it["sifra"])
+            if seen.get(code) == sem:
+                continue
+            if code in seen and sem != seen[code]:
+                repeated_later.append({"sifra": code, "naziv": it.get("naziv"),
+                                       "first": seen[code], "later": sem})
+            seen[code] = sem
             kept_core = True
             ects = _ects(it.get("ects"))
             name = it.get("naziv") or ""
+            season = "zimski" if sem % 2 else "ljetni"
             courses.append({
                 "naziv": name,
-                "sifra": it["sifra"],
-                "semestar": "zimski" if sem % 2 else "ljetni",
+                "sifra": code,
+                "semestar": season,
                 "godina": (sem + 1) // 2,
                 "status": "izborni" if grp else "obavezni",
                 "ects": ects,
                 "preduvjeti": [],
+                "pane": sem,
             })
             ob_n += 1
             ob_ects += ects
@@ -137,6 +146,26 @@ def diagnose(doc):
         })
     merged_courses, merged = isvu.merge_duplicates(courses)
     ob_ects = round(sum(c["ects"] for c in merged_courses), 1)
+    placed = [curriculum_semester(c["godina"], c["semestar"]) for c in merged_courses]
+    stupci = column_span(semester_numbers, placed)
+    # The old graph drew 1..max(earliest) with no curriculum floor and no
+    # elective-only columns. With no prerequisites that earliest is semester 1
+    # for zimski and 2 for ljetni, so a later year disappears.
+    compressed = [1 if c["semestar"] == "zimski" else 2 for c in merged_courses]
+    old_last = max(compressed) if compressed else 0
+    old_columns = list(range(1, old_last + 1)) if old_last else []
+    hidden_old = [s for s in semester_numbers if s not in old_columns]
+    collapsed_n = sum(1 for c, comp in zip(merged_courses, compressed)
+                      if comp != curriculum_semester(c["godina"], c["semestar"]))
+    missing_columns = [s for s in semester_numbers if s not in stupci]
+    off_column = [c["naziv"] for c, sem in zip(merged_courses, placed) if sem not in stupci]
+    moved = []
+    for item in merged:
+        kept_sem = curriculum_semester(item["kept"]["godina"], item["kept"]["semestar"])
+        later = [d for d in item["dropped"]
+                 if curriculum_semester(d["godina"], d["semestar"]) > kept_sem]
+        if later:
+            moved.append(item["naziv"])
     min_elective = round(sum(g["min_ects"] or 0 for g in groups), 1)
     n_sem = len(semester_numbers)
     # A full-time semester is about 30 ECTS. The page is thin when core plus
@@ -160,6 +189,12 @@ def diagnose(doc):
         flags.append("thin_ects")
     if very_low:
         flags.append("very_low")
+    if missing_columns or off_column:
+        flags.append("column_mismatch")
+    if moved:
+        flags.append("merged_earlier")
+    if merged_courses and hidden_old:
+        flags.append("span_was_collapsed")
     # One-cell rows are Izborna grupa banners and "nije evidentirano" notices.
     # They are not dropped courses, so they are counted and not flagged.
     declared = None
@@ -168,9 +203,15 @@ def diagnose(doc):
         "semestri_bez_zapisa": unrecorded,
         "obavezni": len(merged_courses),
         "obavezni_sifre": len(seen),
+        "stupci": stupci,
+        "skriveni_prije": hidden_old,
+        "skupljeni": collapsed_n,
+        "kurs_mimo_stupca": off_column[:8],
+        "spojeno_ranije": moved[:8],
+        "sifra_kasnije": repeated_later[:8],
         "ects": ob_ects,
         "izborne_grupe": len(groups),
-        "izborni_sifre": len(elective_codes - seen),
+        "izborni_sifre": len(elective_codes - set(seen)),
         "min_ects_grupa": min_elective,
         "merged_duplicates": len(merged),
         "slot_names": slot_names[:8],
@@ -223,13 +264,62 @@ def load_done(path):
     return done
 
 
+def write_csv(jsonl_path, csv_path):
+    import csv
+    rows = []
+    with open(jsonl_path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    rows.sort(key=lambda r: (r.get("fakultet") or "", r.get("razina") or 0, str(r.get("izvedba") or ""), r.get("smjer") or 0))
+    fields = [
+        "faculty_id", "fakultet", "razina", "razina_naziv", "izvedba", "smjer", "naziv", "tip",
+        "depth", "semestara", "semesters", "stupci", "skriveni_prije", "skupljeni", "obavezni",
+        "ects", "izborne_grupe", "izborni_sifre", "min_ects_grupa", "merged_duplicates",
+        "spojeno_ranije", "sifra_kasnije", "semestri_bez_zapisa", "flags",
+    ]
+    os.makedirs(os.path.dirname(csv_path) or ".", exist_ok=True)
+    with open(csv_path, "w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            flat = dict(row)
+            for key in ("semesters", "stupci", "skriveni_prije", "semestri_bez_zapisa"):
+                value = flat.get(key) or []
+                flat[key] = ",".join(str(item) for item in value)
+            later = flat.get("sifra_kasnije") or []
+            if isinstance(later, list):
+                flat["sifra_kasnije"] = "|".join(
+                    f"{item.get('naziv')} {item.get('first')}→{item.get('later')}" for item in later
+                )
+            for key in ("spojeno_ranije", "flags"):
+                value = flat.get(key) or []
+                flat[key] = "|".join(str(item) for item in value) if isinstance(value, list) else value
+            writer.writerow(flat)
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="/tmp/obavezni-audit/rows.jsonl")
+    parser.add_argument("--csv", default="")
+    parser.add_argument("--summarize", action="store_true")
     parser.add_argument("--year", type=int)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--faculty", type=int, action="append", default=[])
     args = parser.parse_args()
+    if args.summarize:
+        rows = write_csv(args.out, args.csv or "/tmp/obavezni-audit/render.csv")
+        with_core = [r for r in rows if r.get("obavezni")]
+        mismatch = [r for r in with_core if "column_mismatch" in (r.get("flags") or [])]
+        collapsed = [r for r in with_core if "span_was_collapsed" in (r.get("flags") or [])]
+        moved = [r for r in rows if "merged_earlier" in (r.get("flags") or [])]
+        repeated = [r for r in rows if r.get("sifra_kasnije")]
+        print(f"programmes {len(rows)} with_core {len(with_core)} "
+              f"column_mismatch {len(mismatch)} span_was_collapsed {len(collapsed)} "
+              f"merged_earlier {len(moved)} repeated_sifra {len(repeated)}")
+        return 0
     year = args.year or isvu.current_academic_year()
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     done = load_done(args.out)
@@ -290,6 +380,8 @@ def main():
             if halted:
                 pool.shutdown(wait=False, cancel_futures=True)
     print("done" if not halted else "halted", flush=True)
+    if args.csv and not halted:
+        write_csv(args.out, args.csv)
     return 2 if halted else 0
 
 

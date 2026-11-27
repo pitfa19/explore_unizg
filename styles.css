@@ -839,6 +839,31 @@ select.is-shake { animation: field-nudge 0.42s var(--ease); }
   overflow: hidden;
 }
 .node--izborni { border-style: dashed; }
+.node--slot {
+  border-style: dashed;
+  background: var(--paper);
+  box-shadow: none;
+  cursor: pointer;
+}
+.node--slot .node__name { font-weight: 500; color: var(--text); }
+.graph__empty {
+  fill: var(--muted);
+  font-family: var(--sans);
+  font-size: 12px;
+}
+.graph__detail-list {
+  max-height: 220px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.graph__detail-list li {
+  padding: 3px 0;
+  border-top: 1px solid var(--rule);
+}
 .node--dim { opacity: 0.32; }
 .node--draggable { cursor: grab; padding-right: 20px; touch-action: pan-y; }
 .node--draggable::after {

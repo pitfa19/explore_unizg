@@ -246,9 +246,11 @@ TOOLS = [
                     "chain; 1 gives only direct prerequisites.")},
                 "year": {"type": "integer"},
                 "only_obavezni": {"type": "boolean", "description": (
-                    "When true, export only obligatory courses. Elective groups, including "
-                    "izborno-obavezni blocks, are left out and listed in skipped_electives. "
-                    "Omit it for the whole programme.")},
+                    "When true, kolegiji contains only obligatory courses. Elective groups, "
+                    "including izborno-obavezni blocks, stay out of that list and are returned "
+                    "separately as izborne_grupe (name, min_ects, options) so a graph can draw "
+                    "them as placeholders. skipped_electives lists their codes. Omit it for the "
+                    "whole programme.")},
             },
             "required": ["razina", "izvedba", "smjer"],
         },
@@ -528,6 +530,55 @@ def _prereqs_from(docs, course):
                 seen.add(sig)
                 out.append(pr)
     return out
+
+
+def curriculum_semester(godina, semestar):
+    """Invert godina + zimski/ljetni back into the ISVU semester number."""
+    g = int(godina or 1)
+    return 2 * g - 1 if semestar == "zimski" else 2 * g
+
+
+def column_span(panes, placed):
+    """Contiguous semester columns for one programme graph.
+
+    Starts at the first recorded pane and runs through the later of the last
+    pane and the latest placed course. A semester with no obligatory course
+    stays in the list, so elective-only semesters still get a column.
+    """
+    panes = [int(s) for s in panes]
+    placed = [int(s) for s in placed]
+    if not panes and not placed:
+        return []
+    first = min(panes) if panes else min(placed)
+    last = max(panes + placed)
+    if last < first:
+        return []
+    return list(range(first, last + 1))
+
+
+def elective_slots(grouped, semester):
+    """Placeholder rows for Izborna grupa tables. Not courses everyone takes."""
+    slots = []
+    for grp, items in grouped:
+        if not grp:
+            continue
+        predmeti = []
+        for it in items:
+            if not it.get("sifra"):
+                continue
+            try:
+                ects = float(it.get("ects"))
+            except (TypeError, ValueError):
+                ects = None
+            predmeti.append({"sifra": it.get("sifra"), "naziv": it.get("naziv"), "ects": ects})
+        slots.append({
+            "semestar": semester,
+            "naziv": grp.get("naziv"),
+            "min_ects": grp.get("min_ects"),
+            "opis": grp.get("opis"),
+            "predmeti": predmeti,
+        })
+    return slots
 
 
 def select_curriculum_rows(grouped, only_obavezni=False):
@@ -899,18 +950,26 @@ def call_tool(name, args):
         # groups, including izborno-obavezni blocks, are choices rather than
         # courses everyone takes, so they never enter the list or the prereq fetch.
         only_core = bool(args.get("only_obavezni"))
-        seen, courses = set(), []
+        seen, courses = {}, []
         elective_codes = set()
+        elective_groups = []
         semester_numbers, unrecorded = [], []
         for sem, chunk in sems:
             semester_numbers.append(sem)
-            rows, skipped = select_curriculum_rows(isvu._grouped_tables(chunk), only_core)
+            grouped = isvu._grouped_tables(chunk)
+            rows, skipped = select_curriculum_rows(grouped, only_core)
             elective_codes.update(skipped)
+            if only_core:
+                elective_groups.extend(elective_slots(grouped, sem))
             before = len(courses)
             for grp, it in rows:
-                if not it["sifra"] or it["sifra"] in seen:
+                # The same code in a later semester is the other half of a
+                # year-long course ("Diplomski rad (2/2)", "Orkestar 4 (2/2)"),
+                # not a duplicate row. A second copy inside one semester is.
+                code = it.get("sifra")
+                if not code or seen.get(code) == sem:
                     continue
-                seen.add(it["sifra"])
+                seen[code] = sem
                 try:
                     ects = float(it["ects"])
                 except (TypeError, ValueError):
@@ -933,10 +992,11 @@ def call_tool(name, args):
         courses, merged = isvu.merge_duplicates(courses)
 
         if only_core and not courses:
-            if elective_codes:
+            if elective_codes or elective_groups:
                 return {"error": ("ISVU za ovaj studij nije evidentirao obavezne kolegije. "
                                   "Objavljene su samo izborne grupe."),
                         "skipped_electives": sorted(elective_codes),
+                        "izborne_grupe": elective_groups,
                         "semestri_zapisa": semester_numbers,
                         "semestri_bez_zapisa": unrecorded}
             return {"error": "ISVU za ovaj studij nije evidentirao obavezne kolegije.",
@@ -1003,8 +1063,13 @@ def call_tool(name, args):
             # Present only for the obligatory-only export. Codes that also appear
             # as a mandatory row are not listed: the core row is the one kept.
             **({"skipped_electives": sorted(elective_codes - {c["sifra"] for c in courses}),
+                "izborne_grupe": elective_groups,
                 "semestri_zapisa": semester_numbers,
-                "semestri_bez_zapisa": unrecorded}
+                "semestri_bez_zapisa": unrecorded,
+                "semestri_stupaca": column_span(
+                    semester_numbers,
+                    [curriculum_semester(c["godina"], c["semestar"]) for c in courses]),
+               }
                if only_core else {}),
             "caveat": ("An empty preduvjeti list means the faculty published nothing, not that the "
                        "course has no prerequisites. For a whole programme, ECTS per semester "

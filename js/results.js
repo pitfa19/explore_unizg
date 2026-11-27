@@ -12,9 +12,12 @@
 
   function totals(schedule) {
     const wrap = el("div", "totals");
+    const first = schedule.firstSemester || 1;
+    const columns = Math.max(0, schedule.totalSemesters - first + 1);
+    const years = Math.max(1, Math.ceil(schedule.totalSemesters / 2) - Math.ceil((first - 1) / 2));
     const items = [
-      [schedule.totalSemesters, "Semestara"],
-      [schedule.totalYears, "Godina"],
+      [columns, "Semestara"],
+      [years, "Godina"],
       [schedule.totalEcts, "Ukupno ECTS"],
     ];
     for (const [num, label] of items) {
@@ -51,6 +54,8 @@
       const plan = el("td", "center mono");
       if (c.earliest < c.plan) {
         plan.append(`${c.plan}.`, el("span", "delta", ` ↓${c.plan - c.earliest}`));
+      } else if (c.earliest > c.plan) {
+        plan.append(`${c.plan}.`, el("span", "delta", ` ↑${c.earliest - c.plan}`));
       } else {
         const span = el("span", "muted", `${c.plan}.`);
         plan.appendChild(span);
@@ -67,7 +72,8 @@
   function loadbars(schedule) {
     const wrap = el("div", "loadbars");
     wrap.appendChild(el("h3", "section__title", "ECTS opterećenje po semestru"));
-    for (let s = 1; s <= schedule.totalSemesters; s++) {
+    const first = schedule.firstSemester || 1;
+    for (let s = first; s <= schedule.totalSemesters; s++) {
       const ects = schedule.ectsPerSem[s] || 0;
       const pct = Math.min(100, (ects / 35) * 100);
       const heavy = ects > 30;

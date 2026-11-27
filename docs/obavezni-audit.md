@@ -65,3 +65,28 @@ These are unpublished or elective-only records, concentrated in specialist and d
 No faculty used a course table the parser could not read. Headers are Šifra / Naziv / ECTS throughout. One-cell banner rows inside a mandatory table are labels for the elective tables that follow them. No course row was found after such a banner in the same non-elective table.
 
 Per-programme numbers are in `docs/obavezni-audit.csv`.
+
+## Rendering: semester columns and where each course lands
+
+The graph used to place every course as early as its prerequisites allow, and it only drew columns up to that earliest semester. Obligatory courses carry almost no upis prerequisites, so a zimski course from year 2 landed in semester 1 and a ljetni course, including Diplomski rad, landed in semester 2. Year 2 disappeared even though the ISVU page has panes 1–4.
+
+A programme load now floors each course at its curriculum semester, and the graph draws every semester from the first recorded pane through the last, including panes that hold only an elective group. Each Izborna grupa is a dashed card (`min N ECTS` when ISVU publishes `najmanje N`, otherwise the group's own opis). It is not added to the selection. Clicking it lists the options.
+
+Checked against the same 1413 programmes. For every programme that has obligatory courses:
+
+- Recorded panes missing from the rendered columns: **0**.
+- Kept courses whose semester is not one of those columns: **0**.
+- Programmes whose old graph hid a later pane: **1176** of 1273. That is the bug this change removes. The flag in the CSV is `span_was_collapsed`; `skriveni_prije` is the list of panes the old graph did not draw, and `skupljeni` is how many courses it pulled into an earlier semester.
+
+FER Data Science (smjer 99) and Znanost o podacima (smjer 91) are the case that prompted this. Both publish semesters 1–4. Data Science has 9 obligatory courses; three of them (Mentorski seminar, Napredni algoritmi i strukture podataka, Diplomski rad) sit in semesters 3 and 4. Diplomski rad is semester 4, 30 ECTS, and ISVU publishes no upis prerequisite, which is why it used to collapse into semester 2. The same is true of Znanost o podacima (8 obligatory, Diplomski rad in semester 4). Neither page merges or drops those rows.
+
+FER Računarstvo (smjer 73) is still semesters 3–6 only. The graph starts at semester 3. Završni rad stays in semester 6. Empty columns 1–2 are not invented: those courses live on smjer 71.
+
+Medicina (integrirani, smjer 3) draws semesters 1–12. Diplomski rad, Završni ispit and Diplomski ispit are in semester 12. Filozofija at Filozofski fakultet (prijediplomski, smjer 108) draws semesters 1–6. Semester 4's only obligatory row is Tjelesna i zdravstvena kultura 4; the rest of that column is the elective groups. Završni ispit is in semester 6.
+
+Two placement limits remain, and both are reported rather than papered over:
+
+- **91** programmes list the same course title twice (`merged_earlier`). The graph keeps one row: the higher ECTS, or the earlier semester when the ECTS match. Geodezija (diplomski, smjer 731) lists Diplomski rad at 30 ECTS in semester 3 and again, under another code, at 30 ECTS in semester 4. One card is drawn, in semester 3. The semester 4 column is still there.
+- A year-long course often reuses one ISVU code for "(1/2)" and "(2/2)" with different titles. The second half used to be dropped before the graph ever saw it. Both halves are kept now, in their own semesters, with distinct ids. That raised the obligatory count on **108** programmes, mostly Muzička akademija (37), Fakultet prometnih znanosti (22) and Akademija likovnih umjetnosti (20). Fakultet filozofije i religijskih znanosti, Filozofija diplomski, went from 15 to 16 because Diplomski rad (2/2) in semester 4 is no longer discarded. Protestantska teologija did not change.
+
+The audit does not fetch course pages, so it does not see a prerequisite pushing a course later than its pane. On the four programmes above, the thesis, završni rad and the year-2 seminars publish no upis prerequisite, so the floor is where they land.

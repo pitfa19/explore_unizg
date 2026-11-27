@@ -482,19 +482,38 @@
       let data = {};
       try { data = await response.json(); } catch (err) { data = {}; }
       if (!response.ok || data.error) throw new Error(data.error || `Studij nije učitan (${response.status}).`);
-      const list = (data.kolegiji || []).filter((course) => course.status !== "izborni");
+      const list = (data.kolegiji || [])
+        .filter((course) => course.status !== "izborni")
+        .map((course) => ({ ...course, planSem: PMF.schedule.nominalSemester(course) }));
       if (!list.length) throw new Error("ISVU za ovaj studij nije vratio obavezne kolegije.");
-      const skipped = Array.isArray(data.skipped_electives) ? data.skipped_electives.length : 0;
+      const panes = (Array.isArray(data.semestri_zapisa) ? data.semestri_zapisa : [])
+        .map(Number)
+        .filter((n) => Number.isFinite(n) && n >= 1);
+      const from = panes.length ? Math.min(...panes) : 1;
+      const to = panes.length ? Math.max(...panes) : Math.max(...list.map((course) => course.planSem));
+      const missing = (Array.isArray(data.semestri_bez_zapisa) ? data.semestri_bez_zapisa : [])
+        .map(Number)
+        .filter((n) => Number.isFinite(n) && n >= 1);
+      const slots = (Array.isArray(data.izborne_grupe) ? data.izborne_grupe : []).map((slot) => ({
+        semestar: Number(slot.semestar),
+        naziv: slot.naziv || "",
+        min_ects: slot.min_ects == null || slot.min_ects === "" ? null : Number(slot.min_ects),
+        opis: slot.opis || "",
+        predmeti: Array.isArray(slot.predmeti) ? slot.predmeti : [],
+      })).filter((slot) => Number.isFinite(slot.semestar) && slot.semestar >= 1);
       const notes = [`Učitano ${list.length} obaveznih kolegija.`];
-      const span = Array.isArray(data.semestri_zapisa) ? data.semestri_zapisa : [];
-      if (span.length && span[0] > 1) {
-        notes.push(`Zapis pokriva semestre ${span[0]}–${span[span.length - 1]}.`);
+      if (from > 1) notes.push(`Zapis pokriva semestre ${from}–${to}.`);
+      if (missing.length) notes.push(`Semestri bez evidentiranog programa: ${missing.join(", ")}.`);
+      const occupied = new Set(list.map((course) => course.planSem));
+      const unrecorded = new Set(missing);
+      const bare = [];
+      for (let sem = from; sem <= to; sem++) {
+        if (!occupied.has(sem) && !unrecorded.has(sem)) bare.push(sem);
       }
-      const missing = Array.isArray(data.semestri_bez_zapisa) ? data.semestri_bez_zapisa : [];
-      if (missing.length) {
-        notes.push(`Semestri bez evidentiranog programa: ${missing.join(", ")}.`);
+      if (bare.length) notes.push(`Semestri bez obaveznog kolegija: ${bare.join(", ")}.`);
+      if (slots.length) {
+        notes.push(`Na grafu su izborne grupe (${slots.length}), isprekidano, i nisu u odabiru.`);
       }
-      if (skipped) notes.push(`Izborne grupe nisu uključene (${skipped}).`);
       if (data.merged_duplicates && data.merged_duplicates.length) {
         notes.push(`Spojeno dvostrukih naziva: ${data.merged_duplicates.length}.`);
       }
@@ -503,7 +522,7 @@
       }
       setProgrammeStatus("Slažem graf…", "busy");
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      PMF.app.replaceCourses(list);
+      PMF.app.replaceCourses(list, null, { from, to, unrecorded: missing, slots });
       setProgrammeStatus(notes.join(" "));
       setStatus("Obavezni kolegiji su u odabiru. Graf računa preduvjete i ECTS, ne satnicu.");
       const graphHeading = document.getElementById("graph-heading");

@@ -24,6 +24,42 @@ class CatalogShapeTest(unittest.TestCase):
         self.assertEqual([(it["sifra"], it["naziv"], it["ects"]) for it in items],
                          [("300013", "Ekumenska teologija I", "4.0")])
 
+    def test_grouped_tables_keep_group_opis_and_minimum(self):
+        html = """
+        <td colspan="100" data-target="#izb_predmeti18540_sem1">
+          <b>Izborna grupa: </b>Elective courses<br>
+          <p><b>Opis: </b>broj ECTS bodova koje je potrebno odabrati: najmanje 10</p>
+        </td>
+        <table id="izb_predmeti18540_sem1">
+          <tr><th>Šifra</th><th>Naziv</th><th>ECTS</th></tr>
+          <tr><td>9</td><td>Heuristike</td><td>5.0</td></tr>
+        </table>
+        """
+        grouped = _core.isvu._grouped_tables(html)
+        self.assertEqual(len(grouped), 1)
+        grp, items = grouped[0]
+        self.assertEqual(grp["naziv"], "Elective courses")
+        self.assertEqual(grp["min_ects"], 10.0)
+        self.assertIn("najmanje 10", grp["opis"])
+        self.assertEqual(items[0]["sifra"], "9")
+
+    def test_elective_slots_and_column_span(self):
+        grouped = [
+            (None, [{"sifra": "1", "naziv": "Diplomski rad", "ects": "30"}]),
+            ({"naziv": "Izborni kolegiji", "min_ects": 10.0, "opis": "najmanje 10"},
+             [{"sifra": "9", "naziv": "Heuristike", "ects": "5"}]),
+        ]
+        slots = _core.elective_slots(grouped, 4)
+        self.assertEqual(len(slots), 1)
+        self.assertEqual(slots[0]["semestar"], 4)
+        self.assertEqual(slots[0]["min_ects"], 10.0)
+        self.assertEqual(slots[0]["predmeti"][0]["naziv"], "Heuristike")
+        self.assertEqual(_core.column_span([1, 2, 3, 4], [1, 2, 3, 4]), [1, 2, 3, 4])
+        self.assertEqual(_core.column_span([3, 4, 5, 6], [3, 6]), [3, 4, 5, 6])
+        self.assertEqual(_core.column_span([1, 2, 4], [1, 4]), [1, 2, 3, 4])
+        self.assertEqual(_core.curriculum_semester(2, "ljetni"), 4)
+        self.assertEqual(_core.curriculum_semester(2, "zimski"), 3)
+
     def test_select_curriculum_rows_drops_elective_groups(self):
         grouped = [
             (None, [{"sifra": "1", "naziv": "Matematika"}]),
@@ -101,6 +137,18 @@ class CatalogShapeTest(unittest.TestCase):
         self.assertEqual(course["fakultet"], "PMF")
         self.assertEqual(course["izvor_preduvjeti"][0]["uvjet"], "odslusan")
         self.assertNotIn("_paths", course)
+
+    def test_stamp_programme_splits_a_repeated_code(self):
+        stamped = catalog.stamp_programme({
+            "kolegiji": [
+                {"naziv": "Diplomski rad (1/2)", "sifra": "143402", "semestar": "zimski",
+                 "godina": 2, "status": "obavezni", "ects": 15, "preduvjeti": []},
+                {"naziv": "Diplomski rad (2/2)", "sifra": "143402", "semestar": "ljetni",
+                 "godina": 2, "status": "obavezni", "ects": 15, "preduvjeti": []},
+            ],
+        }, {"id": 2225, "kratko": "FFRZ"})
+        ids = [c["id"] for c in stamped["kolegiji"]]
+        self.assertEqual(ids, ["2225:143402:3", "2225:143402:4"])
 
     def test_build_spine_reuses_course_lists(self):
         institutions = [

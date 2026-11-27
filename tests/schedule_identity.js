@@ -51,4 +51,29 @@ assert(scheduled.earliest.get("36:3") === 2, "Fizika waits for Matematika and st
 assert(S.displayName(mixed[0], mixed).includes("FER"), "duplicate names show the faculty");
 assert(S.fold("Računarstvo") === "racunarstvo", "fold drops diacritics");
 
+// A two-year programme whose second year is a thesis must keep that semester.
+// Without planSem the compress model pulls every ljetni course into semester 2.
+const dataScience = [
+  { naziv: "Uvod u znanost o podacima", semestar: "zimski", godina: 1, status: "obavezni", ects: 5, planSem: 1, preduvjeti: [] },
+  { naziv: "Prezentacijski seminar", semestar: "ljetni", godina: 1, status: "obavezni", ects: 3, planSem: 2, preduvjeti: [] },
+  { naziv: "Mentorski seminar", semestar: "zimski", godina: 2, status: "obavezni", ects: 3, planSem: 3, preduvjeti: [] },
+  { naziv: "Diplomski rad", semestar: "ljetni", godina: 2, status: "obavezni", ects: 30, planSem: 4, preduvjeti: [] },
+];
+const placed = S.computeSchedule(dataScience, { span: { from: 1, to: 4 } });
+assert(placed.ok, placed.error || "data science schedule failed");
+assert(placed.earliest.get("Mentorski seminar") === 3, "mentorski seminar stays in semester 3");
+assert(placed.earliest.get("Diplomski rad") === 4, "thesis stays in semester 4");
+assert(placed.firstSemester === 1 && placed.totalSemesters === 4, "columns cover semesters 1-4");
+const collapsed = S.computeSchedule(dataScience.map(({ planSem, ...course }) => course));
+assert(collapsed.earliest.get("Diplomski rad") === 2, "without the floor the thesis collapses into semester 2");
+assert(collapsed.totalSemesters === 2, "without a span the graph stops at the collapsed semester");
+
+// A later slice (FER Računarstvo is semesters 3-6) does not invent year 1,
+// and a trailing elective-only semester still gets a column.
+const slice = S.computeSchedule([
+  { naziv: "Završni rad", semestar: "ljetni", godina: 3, status: "obavezni", ects: 10, planSem: 6, preduvjeti: [] },
+], { span: { from: 3, to: 6 } });
+assert(slice.firstSemester === 3 && slice.totalSemesters === 6, "slice columns are 3-6");
+assert(slice.earliest.get("Završni rad") === 6, "završni rad stays in semester 6");
+
 console.log("schedule identity ok");

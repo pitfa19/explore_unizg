@@ -35,7 +35,28 @@
     while (el.firstChild) el.removeChild(el.firstChild);
   }
   const parityTag = (s) => (s % 2 === 1 ? "Z" : "Lj");
-  const colXof = (s) => PAD_L + (s - 1) * (CARD_W + COL_GAP);
+  const colXof = (s, first) => PAD_L + (s - (first || 1)) * (CARD_W + COL_GAP);
+
+  function formatEcts(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "";
+    return String(Math.round(n * 10) / 10).replace(/\.0$/, "");
+  }
+
+  function slotText(slot) {
+    const name = (slot.naziv && String(slot.naziv).trim()) || "Izborni kolegiji";
+    const count = (slot.predmeti || []).length;
+    let meta;
+    if (slot.min_ects != null && slot.min_ects !== "" && Number.isFinite(Number(slot.min_ects))) {
+      meta = `min ${formatEcts(slot.min_ects)} ECTS`;
+    } else if (slot.opis) {
+      meta = String(slot.opis);
+    } else {
+      meta = "izborna grupa";
+    }
+    if (count) meta += ` · ${count}`;
+    return { name, meta };
+  }
 
   // Vodoravni kubični brid (isto što i d3.linkHorizontal): kontrolne točke na pola puta.
   function linkPath(x0, y0, x1, y1) {
@@ -71,7 +92,7 @@
     mount.appendChild(box);
   }
 
-  function layout(schedule, courses) {
+  function layout(schedule, courses, slots) {
     const keyOf = (k) => PMF.schedule.courseKey(k);
     const bySem = new Map();
     for (const k of courses) {
@@ -85,21 +106,38 @@
 
     const labelOf = new Map(courses.map((k) => [keyOf(k), PMF.schedule.displayName(k, courses) || k.naziv]));
     const pos = {};
+    const slotPos = [];
     let maxRows = 0;
+    const first = schedule.firstSemester || 1;
     const total = schedule.totalSemesters;
-    for (let s = 1; s <= total; s++) {
+    const bySlot = new Map();
+    for (const slot of slots || []) {
+      const sem = Number(slot.semestar);
+      if (!Number.isFinite(sem) || sem < first || sem > total) continue;
+      if (!bySlot.has(sem)) bySlot.set(sem, []);
+      bySlot.get(sem).push(slot);
+    }
+    for (let s = first; s <= total; s++) {
       const names = (bySem.get(s) || []).slice().sort((a, b) =>
         (labelOf.get(a) || a).localeCompare(labelOf.get(b) || b, "hr"));
-      maxRows = Math.max(maxRows, names.length);
-      const colX = colXof(s);
+      const here = bySlot.get(s) || [];
+      maxRows = Math.max(maxRows, names.length + here.length);
+      const colX = colXof(s, first);
       names.forEach((n, i) => {
         const y = NODES_TOP + i * (CARD_H + ROW_GAP);
         pos[n] = { x: colX, y, cy: y + CARD_H / 2, sem: s, status: statusOf.get(n) || "", ects: ectsOf.get(n) || 0 };
       });
+      here.forEach((slot, i) => {
+        const y = NODES_TOP + (names.length + i) * (CARD_H + ROW_GAP);
+        slotPos.push({ slot, x: colX, y, sem: s });
+      });
     }
-    const width = PAD_L + total * (CARD_W + COL_GAP) - COL_GAP + PAD_R;
-    const height = NODES_TOP + maxRows * (CARD_H + ROW_GAP) - ROW_GAP + PAD_B;
-    return { pos, width, height, total };
+    const count = Math.max(0, total - first + 1);
+    const width = count ? PAD_L + count * (CARD_W + COL_GAP) - COL_GAP + PAD_R : 320;
+    const height = maxRows
+      ? NODES_TOP + maxRows * (CARD_H + ROW_GAP) - ROW_GAP + PAD_B
+      : NODES_TOP + 28 + PAD_B;
+    return { pos, width, height, total, first, slotPos };
   }
 
   function render(mount, schedule, courses, opts) {
@@ -108,7 +146,8 @@
     if (!schedule.totalSemesters) return renderEmpty(mount);
 
     const onPin = opts && opts.onPin;
-    const { pos, width, height, total } = layout(schedule, courses);
+    const unrecorded = new Set((opts && opts.unrecorded || []).map(Number));
+    const { pos, width, height, total, first, slotPos } = layout(schedule, courses, opts && opts.slots);
 
     const svg = svgEl("svg", {
       class: "graph__svg",
@@ -132,7 +171,7 @@
     // ── godišnji pojas (grupira semestre u godine) ──
     const gYears = svgEl("g", { class: "graph__years" });
     const groups = [];
-    for (let s = 1; s <= total; s++) {
+    for (let s = first; s <= total; s++) {
       const y = Math.ceil(s / 2);
       const last = groups[groups.length - 1];
       if (!last || last.year !== y) groups.push({ year: y, first: s, last: s });
@@ -140,8 +179,8 @@
     }
     const ruleY = YEAR_TOP + YEAR_H;
     for (const g of groups) {
-      const x0 = colXof(g.first);
-      const x1 = colXof(g.last) + CARD_W;
+      const x0 = colXof(g.first, first);
+      const x1 = colXof(g.last, first) + CARD_W;
       gYears.appendChild(svgEl("line", { x1: x0, y1: ruleY, x2: x1, y2: ruleY, class: "graph__year-rule" }));
       gYears.appendChild(svgEl("line", { x1: x0, y1: ruleY, x2: x0, y2: ruleY + 4, class: "graph__year-rule" }));
       gYears.appendChild(svgEl("line", { x1: x1, y1: ruleY, x2: x1, y2: ruleY + 4, class: "graph__year-rule" }));
@@ -153,8 +192,8 @@
 
     // ── zaglavlja stupaca (semestri) ──
     const gHeads = svgEl("g", { class: "graph__heads" });
-    for (let s = 1; s <= total; s++) {
-      const colX = colXof(s);
+    for (let s = first; s <= total; s++) {
+      const colX = colXof(s, first);
       const t = total > 1 ? (s - 1) / (total - 1) : 0;
       gHeads.appendChild(svgEl("rect", { x: colX, y: HEAD_TOP, width: CARD_W, height: HEAD_H, rx: 3, fill: semTint(t) }));
       const cy = HEAD_TOP + HEAD_H / 2;
@@ -185,6 +224,7 @@
     inIdx.forEach((arr) => arr.sort((a, b) => pos[a.source].cy - pos[b.source].cy));
 
     const nodeEls = new Map();
+    const slotEls = [];
     const edgeInfos = []; // { el, s, t }
     let pinned = null;
     const maxPort = CARD_H / 2 - 8;
@@ -236,11 +276,41 @@
       if (draggable) enableDrag(fo, card, k, p);
     }
 
+    const occupied = new Set();
+    for (const p of Object.values(pos)) occupied.add(p.sem);
+    for (const sp of slotPos) {
+      occupied.add(sp.sem);
+      const fo = svgEl("foreignObject", { x: String(sp.x), y: String(sp.y), width: String(CARD_W), height: String(CARD_H) });
+      const card = htmlEl("div", "node node--slot");
+      const text = slotText(sp.slot);
+      card.setAttribute("title", "Popis kolegija u grupi");
+      const name = htmlEl("span", "node__name");
+      name.textContent = text.name;
+      const meta = htmlEl("span", "node__meta");
+      meta.textContent = text.meta;
+      card.append(name, meta);
+      card._slot = sp.slot;
+      fo.appendChild(card);
+      gNodes.appendChild(fo);
+      slotEls.push(card);
+    }
+    for (let s = first; s <= total; s++) {
+      if (occupied.has(s)) continue;
+      const caption = svgEl("text", {
+        x: colXof(s, first) + 10,
+        y: NODES_TOP + 14,
+        class: "graph__empty",
+      });
+      caption.textContent = unrecorded.has(s) ? "Nije evidentirano" : "Nema obaveznog kolegija";
+      gNodes.appendChild(caption);
+    }
+
     // Hover: istakni put (kolegij + svi njegovi preduvjeti i ovisnici), zatamni ostalo.
     function setHot(naziv, on) {
       if (!on) {
         svg.classList.remove("has-hover");
         for (const el of nodeEls.values()) el.classList.remove("node--hot", "node--adj", "node--dim");
+        for (const el of slotEls) el.classList.remove("node--dim");
         for (const ei of edgeInfos) ei.el.classList.remove("edge--hot", "edge--dim");
         return;
       }
@@ -270,6 +340,7 @@
         ei.el.classList.toggle("edge--hot", inChain);
         ei.el.classList.toggle("edge--dim", !inChain);
       }
+      for (const el of slotEls) el.classList.add("node--dim");
     }
 
     // ── povlačenje (drag) kolegija bez preduvjeta u drugi semestar ──
@@ -282,7 +353,7 @@
       const wantOdd = course.semestar !== "ljetni";
       const cols = [];
       for (let s = base; s <= total; s++) {
-        if ((s % 2 === 1) === wantOdd) cols.push({ sem: s, cx: colXof(s) + CARD_W / 2 });
+        if ((s % 2 === 1) === wantOdd) cols.push({ sem: s, cx: colXof(s, first) + CARD_W / 2 });
       }
       return cols;
     }
@@ -293,8 +364,11 @@
     }
 
     function enableDrag(fo, card, course, p) {
-      // Kolegij bez preduvjeta: najraniji mu je prvi semestar njegove sezone.
-      const base = course.semestar === "ljetni" ? 2 : 1;
+      // Bez preduvjeta: najraniji je prvi semestar sezone. Kolegij učitan iz
+      // studija ne ide prije svog semestra u nastavnom programu.
+      const seasonBase = course.semestar === "ljetni" ? 2 : 1;
+      const plan = Number(course.planSem);
+      const base = Number.isFinite(plan) && plan > seasonBase ? Math.floor(plan) : seasonBase;
       let dragging = false, startX = 0, startY = 0, cols = [];
 
       const showTargets = () => {
@@ -302,7 +376,7 @@
         const top = NODES_TOP - 8;
         const h = height - top - PAD_B + 8;
         for (const c of cols) {
-          const r = svgEl("rect", { x: colXof(c.sem) - 8, y: top, width: CARD_W + 16, height: h, rx: 6, class: "target" });
+          const r = svgEl("rect", { x: colXof(c.sem, first) - 8, y: top, width: CARD_W + 16, height: h, rx: 6, class: "target" });
           r.setAttribute("data-sem", String(c.sem));
           gTargets.appendChild(r);
         }
@@ -385,7 +459,45 @@
       apply();
     };
 
-    const showDetail = (course) => {
+    const showSlot = (slot) => {
+      pinned = null;
+      setHot("", false);
+      detail.hidden = false;
+      detail.replaceChildren();
+      const text = slotText(slot);
+      const title = document.createElement("p");
+      title.className = "graph__detail-name";
+      title.textContent = text.name;
+      const meta = document.createElement("p");
+      meta.className = "graph__detail-meta";
+      const bits = [text.meta, `${Number(slot.semestar)}. semestar`];
+      if (slot.opis && !text.meta.includes(slot.opis)) bits.push(slot.opis);
+      meta.textContent = bits.join(" · ");
+      detail.append(title, meta);
+      const options = slot.predmeti || [];
+      if (!options.length) {
+        const pre = document.createElement("p");
+        pre.className = "graph__detail-pre";
+        pre.textContent = "ISVU u ovoj grupi nije naveo kolegije.";
+        detail.appendChild(pre);
+        return;
+      }
+      const list = document.createElement("ul");
+      list.className = "graph__detail-list";
+      for (const item of options) {
+        const li = document.createElement("li");
+        const ects = formatEcts(item.ects);
+        li.textContent = ects ? `${item.naziv} · ${ects} ECTS` : (item.naziv || item.sifra || "Kolegij");
+        list.appendChild(li);
+      }
+      detail.appendChild(list);
+    };
+
+    const showDetail = (card) => {
+      if (!card) return;
+      if (card._slot) return showSlot(card._slot);
+      const course = card._course;
+      if (!course) return;
       const id = keyOf(course);
       pinned = id;
       setHot(id, true);
@@ -446,13 +558,13 @@
     const cardAt = (x, y) => {
       const hit = document.elementFromPoint(x, y);
       const direct = hit && hit.closest && hit.closest(".node");
-      if (direct && direct._course) return direct;
+      if (direct && (direct._course || direct._slot)) return direct;
       let found = null;
       for (const card of view.querySelectorAll(".node")) {
         const r = card.getBoundingClientRect();
         if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) found = card;
       }
-      return found && found._course ? found : null;
+      return found && (found._course || found._slot) ? found : null;
     };
     view.addEventListener("pointerup", (ev) => {
       if (!gesture || ev.pointerId !== gesture.id) return;
@@ -463,7 +575,7 @@
         return;
       }
       const card = cardAt(ev.clientX, ev.clientY);
-      if (card) showDetail(card._course);
+      if (card) showDetail(card);
     });
     view.addEventListener("click", (ev) => {
       if (suppressClick) {
@@ -471,7 +583,7 @@
         return;
       }
       const card = cardAt(ev.clientX, ev.clientY);
-      if (card) showDetail(card._course);
+      if (card) showDetail(card);
     });
     view.addEventListener("pointercancel", () => { gesture = null; });
 
