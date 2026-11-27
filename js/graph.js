@@ -186,6 +186,7 @@
 
     const nodeEls = new Map();
     const edgeInfos = []; // { el, s, t }
+    let pinned = null;
     const maxPort = CARD_H / 2 - 8;
     const clampPort = (v) => Math.max(-maxPort, Math.min(maxPort, v));
 
@@ -225,12 +226,13 @@
       metaBits.push(`${p.sem}.`, `${p.ects} ECTS`, parityTag(p.sem));
       meta.textContent = metaBits.join(" · ");
       card.append(name, meta);
+      card._course = k;
       fo.appendChild(card);
       gNodes.appendChild(fo);
       nodeEls.set(id, card);
 
-      card.addEventListener("mouseenter", () => setHot(id, true));
-      card.addEventListener("mouseleave", () => setHot(id, false));
+      card.addEventListener("mouseenter", () => { if (!pinned) setHot(id, true); });
+      card.addEventListener("mouseleave", () => { if (pinned !== id) setHot(id, false); });
       if (draggable) enableDrag(fo, card, k, p);
     }
 
@@ -311,6 +313,7 @@
       };
 
       card.addEventListener("pointerdown", (ev) => {
+        if (ev.pointerType === "touch") return;
         if (ev.button != null && ev.button !== 0) return;
         ev.preventDefault();
         dragging = true;
@@ -348,7 +351,166 @@
       card.addEventListener("pointercancel", end);
     }
 
-    mount.appendChild(svg);
+    const view = document.createElement("div");
+    view.className = "graph__viewport";
+    svg.style.width = width + "px";
+    svg.style.height = height + "px";
+    view.appendChild(svg);
+    const detail = document.createElement("div");
+    detail.className = "graph__detail";
+    detail.hidden = true;
+    mount.append(view, detail);
+
+    const state = { x: 12, y: 8, s: 1 };
+    const apply = () => {
+      svg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.s})`;
+    };
+    const clamp = () => {
+      const vw = view.clientWidth || 320;
+      const vh = view.clientHeight || 280;
+      const sw = width * state.s;
+      const sh = height * state.s;
+      state.x = Math.min(16, Math.max(Math.min(16, vw - sw - 16), state.x));
+      state.y = Math.min(12, Math.max(Math.min(12, vh - sh - 12), state.y));
+    };
+    const fit = () => {
+      const vw = view.clientWidth || 320;
+      const readable = Math.min(1, (vw * 0.78) / CARD_W);
+      const fitAll = Math.min(vw / width, (view.clientHeight || 320) / height, 1);
+      const textAtFit = 13 * fitAll;
+      state.s = textAtFit >= 12 ? fitAll : readable;
+      state.x = 12;
+      state.y = 8;
+      clamp();
+      apply();
+    };
+
+    const showDetail = (course) => {
+      const id = keyOf(course);
+      pinned = id;
+      setHot(id, true);
+      detail.hidden = false;
+      detail.replaceChildren();
+      const title = document.createElement("p");
+      title.className = "graph__detail-name";
+      title.textContent = PMF.schedule.displayName(course, courses) || course.naziv || "Kolegij";
+      const meta = document.createElement("p");
+      meta.className = "graph__detail-meta";
+      const bits = [];
+      if (course.fakultet) bits.push(course.fakultet);
+      if (course.sifra) bits.push(String(course.sifra));
+      bits.push(course.status === "izborni" ? "izborni" : "obavezni");
+      bits.push(`${course.ects} ECTS`);
+      bits.push(`${course.godina}. godina`);
+      bits.push(course.semestar === "ljetni" ? "ljetni" : "zimski");
+      meta.textContent = bits.join(" · ");
+      const pre = document.createElement("p");
+      pre.className = "graph__detail-pre";
+      const names = (course.izvor_preduvjeti || course.preduvjeti || []).map((item) =>
+        typeof item === "string" ? item : item.kolegij
+      ).filter(Boolean);
+      pre.textContent = names.length
+        ? `Preduvjeti: ${names.join(", ")}`
+        : "ISVU za ovaj kolegij nije objavio preduvjete za upis.";
+      detail.append(title, meta, pre);
+    };
+
+    let gesture = null;
+    let suppressClick = false;
+    view.addEventListener("pointerdown", (ev) => {
+      if (ev.pointerType === "mouse" && ev.button !== 0) return;
+      if (ev.pointerType === "mouse" && ev.target.closest && ev.target.closest(".node--draggable")) return;
+      gesture = {
+        id: ev.pointerId, x: ev.clientX, y: ev.clientY,
+        ox: state.x, oy: state.y, moved: false, pan: false,
+      };
+    });
+    view.addEventListener("pointermove", (ev) => {
+      if (!gesture || ev.pointerId !== gesture.id) return;
+      const dx = ev.clientX - gesture.x;
+      const dy = ev.clientY - gesture.y;
+      if (!gesture.moved && Math.hypot(dx, dy) < 8) return;
+      gesture.moved = true;
+      if (!gesture.pan) {
+        if (ev.pointerType === "touch" && Math.abs(dy) > Math.abs(dx)) {
+          gesture = null;
+          return;
+        }
+        gesture.pan = true;
+      }
+      state.x = gesture.ox + dx;
+      state.y = gesture.oy + dy;
+      clamp();
+      apply();
+    });
+    const cardAt = (x, y) => {
+      const hit = document.elementFromPoint(x, y);
+      const direct = hit && hit.closest && hit.closest(".node");
+      if (direct && direct._course) return direct;
+      let found = null;
+      for (const card of view.querySelectorAll(".node")) {
+        const r = card.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) found = card;
+      }
+      return found && found._course ? found : null;
+    };
+    view.addEventListener("pointerup", (ev) => {
+      if (!gesture || ev.pointerId !== gesture.id) return;
+      const was = gesture;
+      gesture = null;
+      if (was.moved) {
+        suppressClick = true;
+        return;
+      }
+      const card = cardAt(ev.clientX, ev.clientY);
+      if (card) showDetail(card._course);
+    });
+    view.addEventListener("click", (ev) => {
+      if (suppressClick) {
+        suppressClick = false;
+        return;
+      }
+      const card = cardAt(ev.clientX, ev.clientY);
+      if (card) showDetail(card._course);
+    });
+    view.addEventListener("pointercancel", () => { gesture = null; });
+
+    const pinchMeasure = (ev) => {
+      const a = ev.touches[0];
+      const b = ev.touches[1];
+      const rect = view.getBoundingClientRect();
+      return {
+        dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1,
+        mx: (a.clientX + b.clientX) / 2 - rect.left,
+        my: (a.clientY + b.clientY) / 2 - rect.top,
+      };
+    };
+    let pinch = null;
+    view.addEventListener("touchstart", (ev) => {
+      if (ev.touches.length < 2) return;
+      ev.preventDefault();
+      const now = pinchMeasure(ev);
+      pinch = { dist: now.dist, s: state.s, x: state.x, y: state.y, mx: now.mx, my: now.my };
+    }, { passive: false });
+    view.addEventListener("touchmove", (ev) => {
+      if (ev.touches.length === 2 && pinch) {
+        ev.preventDefault();
+        const now = pinchMeasure(ev);
+        const next = Math.min(2.6, Math.max(0.4, pinch.s * (now.dist / pinch.dist)));
+        const k = next / pinch.s;
+        state.s = next;
+        state.x = pinch.mx - (pinch.mx - pinch.x) * k;
+        state.y = pinch.my - (pinch.my - pinch.y) * k;
+        clamp();
+        apply();
+        return;
+      }
+      if (gesture && gesture.pan) ev.preventDefault();
+    }, { passive: false });
+    view.addEventListener("touchend", () => { pinch = null; });
+    view.addEventListener("touchcancel", () => { pinch = null; });
+
+    fit();
   }
 
   PMF.graph = { render };

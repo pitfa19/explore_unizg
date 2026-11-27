@@ -283,6 +283,24 @@
     hint.textContent = "Odabir miješa sastavnice. To je horizontalna mobilnost: razina mora odgovarati i kolegij se ne smije već predavati na matičnom programu. Prosjek se ne traži, a pad ne ulazi u prosjek kod kuće. Obrazac, naknadu, rok i slobodna mjesta određuje fakultet.";
   }
 
+  function setProgrammeStatus(text, kind) {
+    const el = $("programme-status");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("is-error", kind === "error");
+    el.classList.toggle("is-busy", kind === "busy");
+  }
+
+  function selectedProgramme(select) {
+    const option = select.options[select.selectedIndex];
+    if (!option || option.value === "") return null;
+    const razina = option.dataset.razina;
+    const izvedba = option.dataset.izvedba;
+    const smjer = option.dataset.smjer;
+    if (razina == null || izvedba == null || smjer == null || razina === "" || smjer === "") return null;
+    return { razina, izvedba, smjer, naziv: option.textContent };
+  }
+
   async function loadProgrammes(facultyId) {
     const select = $("programme-select");
     const button = $("btn-load-programme");
@@ -295,6 +313,7 @@
       option.textContent = "Odaberi sastavnicu, pa studij";
       select.appendChild(option);
       select.disabled = true;
+      setProgrammeStatus("");
       return;
     }
     select.disabled = true;
@@ -302,9 +321,11 @@
     waiting.value = "";
     waiting.textContent = "Učitavam studije…";
     select.appendChild(waiting);
+    setProgrammeStatus("Dohvaćam popis studija…", "busy");
     try {
       const response = await fetch(`/api/catalog?op=programmes&faculty_id=${encodeURIComponent(facultyId)}`);
-      const data = await response.json();
+      let data = {};
+      try { data = await response.json(); } catch (err) { data = {}; }
       if (!response.ok || data.error) throw new Error(data.error || "Popis studija nije stigao.");
       select.innerHTML = "";
       const programmes = data.programmes || [];
@@ -314,48 +335,58 @@
         option.textContent = "Nema objavljenog nastavnog programa";
         select.appendChild(option);
         select.disabled = true;
+        setProgrammeStatus("ISVU za ovu sastavnicu nije vratio nastavni program.", "error");
         return;
       }
       for (const programme of programmes) {
         const option = document.createElement("option");
-        option.value = JSON.stringify({
-          razina: programme.razina,
-          izvedba: programme.izvedba,
-          smjer: programme.smjer,
-        });
+        option.value = `${programme.razina}|${programme.izvedba}|${programme.smjer}`;
+        option.dataset.razina = String(programme.razina);
+        option.dataset.izvedba = String(programme.izvedba);
+        option.dataset.smjer = String(programme.smjer);
         const prefix = programme.kategorija ? `${programme.kategorija} — ` : "";
         option.textContent = prefix + (programme.naziv || "Studij");
         select.appendChild(option);
       }
       select.disabled = false;
       button.disabled = false;
+      setProgrammeStatus(`${programmes.length} studija. Odaberi jedan i učitaj ga.`);
     } catch (err) {
       select.innerHTML = "";
       const option = document.createElement("option");
       option.value = "";
       option.textContent = "Studiji nisu učitani";
       select.appendChild(option);
+      select.disabled = true;
+      button.disabled = true;
+      setProgrammeStatus(err.message || "Popis studija nije stigao.", "error");
       PMF.ui.toast(err.message, "error");
     }
   }
 
   async function loadProgramme() {
-    const facultyId = facultySelect().value;
+    const faculty = facultySelect();
+    const facultyId = faculty && faculty.value;
     const select = $("programme-select");
     const button = $("btn-load-programme");
-    if (!facultyId || !select.value) return;
-    const current = PMF.app.getCourses();
-    if (current.length && !window.confirm("Učitavanje studija zamjenjuje trenutni odabir.")) return;
-    let spec;
-    try {
-      spec = JSON.parse(select.value);
-    } catch (err) {
+    if (!button || !select) return;
+    if (!facultyId) {
+      setProgrammeStatus("Prvo odaberi sastavnicu.", "error");
       return;
     }
+    const spec = selectedProgramme(select);
+    if (!spec) {
+      setProgrammeStatus(select.disabled ? "Popis studija još nije stigao." : "Odaberi studij, pa učitaj.", "error");
+      return;
+    }
+    const current = PMF.app.getCourses();
+    if (current.length && !window.confirm("Učitavanje studija zamjenjuje trenutni odabir.")) return;
     button.disabled = true;
+    button.setAttribute("aria-busy", "true");
     const previous = button.textContent;
     button.textContent = "Učitavam…";
-    setStatus("Učitavam studij sa ISVU-a. Preduvjeti se povlače za svaki kolegij, pa ovo može potrajati.");
+    setProgrammeStatus("Učitavam studij s ISVU-a. Preduvjeti idu kolegij po kolegij, pa ovo traje.", "busy");
+    setStatus("Učitavam studij s ISVU-a…");
     try {
       const params = new URLSearchParams({
         op: "dag",
@@ -365,9 +396,11 @@
         smjer: String(spec.smjer),
       });
       const response = await fetch(`/api/catalog?${params}`);
-      const data = await response.json();
-      if (!response.ok || data.error) throw new Error(data.error || "Studij nije učitan.");
+      let data = {};
+      try { data = await response.json(); } catch (err) { data = {}; }
+      if (!response.ok || data.error) throw new Error(data.error || `Studij nije učitan (${response.status}).`);
       const list = data.kolegiji || [];
+      if (!list.length) throw new Error("ISVU za ovaj studij nije vratio nijedan kolegij.");
       const notes = [`Učitano ${list.length} kolegija.`];
       if (data.merged_duplicates && data.merged_duplicates.length) {
         notes.push(`Spojeno dvostrukih naziva: ${data.merged_duplicates.length}.`);
@@ -375,13 +408,19 @@
       if (data.dropped_prerequisites && data.dropped_prerequisites.length) {
         notes.push(`Preduvjeti izvan studija nisu nacrtani: ${data.dropped_prerequisites.length}.`);
       }
-      PMF.app.replaceCourses(list, notes.join(" "));
+      PMF.app.replaceCourses(list);
+      setProgrammeStatus(notes.join(" "));
       setStatus("Studij je u odabiru. Graf računa preduvjete i ECTS, ne satnicu.");
+      const graphHeading = document.getElementById("graph-heading");
+      if (graphHeading) graphHeading.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
-      PMF.ui.toast(err.message, "error");
+      const message = err.message || "Studij nije učitan.";
+      setProgrammeStatus(message, "error");
       setStatus("");
+      PMF.ui.toast(message, "error");
     } finally {
-      button.disabled = !select.value;
+      button.removeAttribute("aria-busy");
+      button.disabled = !selectedProgramme(select);
       button.textContent = previous;
     }
   }

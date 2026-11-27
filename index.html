@@ -62,23 +62,27 @@
 
       <div class="agent-panel" role="tabpanel" id="panel-claude" aria-labelledby="tab-claude">
         <ol>
-          <li>Otvori Customize, zatim Connectors.</li>
-          <li>Add custom connector i zalijepi adresu iz trake.</li>
-          <li>Autentifikacija: bez prijave. Poslužitelj je javan i ne traži ključ.</li>
+          <li>Customize, zatim Connectors.</li>
+          <li>Add custom connector i zalijepi adresu iz trake. Bez prijave.</li>
         </ol>
-        <p>Isti konektor vrijedi na webu, u mobilnoj aplikaciji i u Claude Desktopu. Zahtjev ide s Anthropicovih poslužitelja, zato adresa mora biti javni HTTPS.</p>
+        <details class="alt">
+          <summary>Web, mobitel i Desktop dijele isti konektor</summary>
+          <p>Zahtjev ide s Anthropicovih poslužitelja, zato adresa mora biti javni HTTPS.</p>
+        </details>
       </div>
 
       <div class="agent-panel" role="tabpanel" id="panel-code" aria-labelledby="tab-code" hidden>
         <p>U terminalu, iz mape projekta:</p>
-        <div class="snippet snippet--cmd" data-copy-host>
+        <div class="snippet" data-copy-host>
           <span class="cmdbar__prompt" aria-hidden="true">$</span>
           <pre>claude mcp add --transport http unizg-courses https://explore-unizg.vercel.app/api/mcp</pre>
           <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
         </div>
-        <p>Ili u <span class="mono">.mcp.json</span>. Polje <span class="mono">type</span> mora biti <span class="mono">http</span>, inače Claude Code preskoči unos.</p>
-        <div class="snippet" data-copy-host>
-          <pre>{
+        <details class="alt">
+          <summary>Ili datoteka .mcp.json</summary>
+          <p>Polje <span class="mono">type</span> mora biti <span class="mono">http</span>, inače Claude Code preskoči unos.</p>
+          <div class="snippet" data-copy-host>
+            <pre>{
   "mcpServers": {
     "unizg-courses": {
       "type": "http",
@@ -86,12 +90,13 @@
     }
   }
 }</pre>
-          <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
-        </div>
+            <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+          </div>
+        </details>
       </div>
 
       <div class="agent-panel" role="tabpanel" id="panel-cursor" aria-labelledby="tab-cursor" hidden>
-        <p>U <span class="mono">~/.cursor/mcp.json</span> za sve projekte, ili u <span class="mono">.cursor/mcp.json</span> za jedan projekt. Spremi i ponovno otvori Cursor. Poslužitelj je pod Settings → MCP.</p>
+        <p><span class="mono">~/.cursor/mcp.json</span> ili <span class="mono">.cursor/mcp.json</span>. Spremi i ponovno otvori Cursor.</p>
         <div class="snippet" data-copy-host>
           <pre>{
   "mcpServers": {
@@ -106,26 +111,30 @@
 
       <div class="agent-panel" role="tabpanel" id="panel-chatgpt" aria-labelledby="tab-chatgpt" hidden>
         <ol>
-          <li>U pregledniku otvori Plugins (chatgpt.com/plugins). Mobilna aplikacija ovo ne zna.</li>
-          <li>Add custom MCP server. Ime: UNIZG. Adresa je ona iz trake. Autentifikacija: bez prijave.</li>
-          <li>Potvrdi upozorenje, instaliraj dodatak i uključi ga u novom razgovoru.</li>
+          <li>U pregledniku: Plugins, pa Add custom MCP server. Ime: UNIZG. Bez prijave.</li>
+          <li>Uključi dodatak u novom razgovoru. Mobilna aplikacija ovo ne zna.</li>
         </ol>
-        <p>Business, Enterprise i Edu imaju puni pristup. Pro čita. Plus, Go i Free u OpenAI-jevoj dokumentaciji nisu zajamčeni: ako stavke nema u izborniku, plan je ne podržava.</p>
+        <details class="alt">
+          <summary>Koji planovi ovo imaju</summary>
+          <p>Business, Enterprise i Edu imaju puni pristup. Pro čita. Plus, Go i Free u OpenAI-jevoj dokumentaciji nisu zajamčeni.</p>
+        </details>
       </div>
 
       <div class="agent-panel" role="tabpanel" id="panel-codex" aria-labelledby="tab-codex" hidden>
-        <p>U <span class="mono">~/.codex/config.toml</span>:</p>
+        <p>Iz terminala. Desktop, CLI i proširenje dijele istu datoteku.</p>
         <div class="snippet" data-copy-host>
-          <pre>[mcp_servers.unizg-courses]
-url = "https://explore-unizg.vercel.app/api/mcp"</pre>
-          <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
-        </div>
-        <p>Ili iz terminala. Desktop, CLI i proširenje dijele tu datoteku.</p>
-        <div class="snippet snippet--cmd" data-copy-host>
           <span class="cmdbar__prompt" aria-hidden="true">$</span>
           <pre>codex mcp add unizg-courses --url https://explore-unizg.vercel.app/api/mcp</pre>
           <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
         </div>
+        <details class="alt">
+          <summary>Ili ~/.codex/config.toml</summary>
+          <div class="snippet" data-copy-host>
+            <pre>[mcp_servers.unizg-courses]
+url = "https://explore-unizg.vercel.app/api/mcp"</pre>
+            <button class="snippet__copy" type="button" data-copy-btn data-label="Kopiraj">Kopiraj</button>
+          </div>
+        </details>
       </div>
 
       <p class="why">Zašto MCP, a ne vještina: podaci su živi, instalacija je jedna poveznica i radi u svakom agentu koji zna MCP.</p>
@@ -170,8 +179,9 @@ url = "https://explore-unizg.vercel.app/api/mcp"</pre>
                 <select id="programme-select" aria-labelledby="programme-label" disabled>
                   <option value="">Odaberi sastavnicu, pa studij</option>
                 </select>
-                <button id="btn-load-programme" class="btn" type="button" disabled>Učitaj studij</button>
+                <button id="btn-load-programme" class="btn" type="button" disabled>Učitaj cijeli studij</button>
               </div>
+              <p id="programme-status" class="programme__status" role="status"></p>
               <p class="programme__note">Cijeli studij zna biti pregust graf. Za lanac jednog kolegija pitaj agenta.</p>
             </div>
           </div>
@@ -187,8 +197,8 @@ url = "https://explore-unizg.vercel.app/api/mcp"</pre>
       <section class="panel panel--stage" aria-labelledby="graph-heading">
         <h2 id="graph-heading" class="section__heading">Graf preduvjeta</h2>
         <p class="stage__hint">
-          Preklapanja su preduvjeti i ECTS opterećenje. Rasporeda sati nema u ovom izvoru.
-          Kolegije bez preduvjeta možeš povući <span aria-hidden="true">↔</span> u kasniji semestar.
+          Preklapanja su preduvjeti i ECTS. Dodirni kolegij za detalje. Povuci graf u stranu ili stisni za zum.
+          Mišem, kolegij bez preduvjeta možeš povući <span aria-hidden="true">↔</span> u kasniji semestar.
         </p>
         <p id="dropped-prereqs" class="stage__hint" hidden></p>
         <div id="graph" class="graph"></div>
